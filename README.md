@@ -145,7 +145,7 @@ After the initial login, Sync runs automatically.
 
 For better security, you can disable the Web GUI when not needed:
 
-- **Disable**: Blocks ports 3000 and 3001 via iptables. MCP (port 3002) still works.
+- **Disable**: Blocks port 3001 via iptables. MCP (port 3002) still works.
 - **Enable**: Restores GUI access for configuration or troubleshooting.
 
 This is useful because:
@@ -247,7 +247,7 @@ Both services require authentication:
 ### Infrastructure Security
 
 - **REST API not exposed externally** - Port 27123 is only accessible within the Docker network
-- **Firewall rules** - Only necessary ports are open (22, 3000, 3001, 3002)
+- **Firewall rules** - Only necessary ports are open (22, 3001, 3002)
 - **IP restrictions** - You can limit access to specific IPs via `firewall_allowed_ips`
 - **Automatic cleanup** - Failed deployments automatically clean up resources
 

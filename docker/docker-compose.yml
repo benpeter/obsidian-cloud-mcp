@@ -15,9 +15,8 @@ services:
       - ./config:/config
       - ./vault:/config/obsidian-vault
     ports:
-      - "3000:3000"    # HTTP Web GUI
-      - "3001:3001"    # HTTPS Web GUI (primary access)
-      # Note: Port 27123 (REST API) intentionally NOT exposed externally
+      - "3001:3001"    # HTTPS Web GUI
+      # Note: Port 3000 (HTTP) and 27123 (REST API) intentionally NOT exposed
     shm_size: "1gb"
     restart: unless-stopped
     healthcheck:

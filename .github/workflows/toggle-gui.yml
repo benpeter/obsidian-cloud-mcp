@@ -44,12 +44,10 @@ jobs:
         if: inputs.action == 'disable'
         run: |
           ssh -o StrictHostKeyChecking=no root@${{ steps.server.outputs.ip }} << 'EOF'
-          echo "Blocking Web GUI ports 3000 and 3001..."
+          echo "Blocking Web GUI port 3001..."
 
-          # Block incoming traffic to ports 3000 and 3001
-          iptables -I INPUT -p tcp --dport 3000 -j DROP 2>/dev/null || true
+          # Block incoming traffic to port 3001 (HTTPS GUI)
           iptables -I INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
-          ip6tables -I INPUT -p tcp --dport 3000 -j DROP 2>/dev/null || true
           ip6tables -I INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
 
           # Save rules to persist across reboots
@@ -64,12 +62,10 @@ jobs:
         if: inputs.action == 'enable'
         run: |
           ssh -o StrictHostKeyChecking=no root@${{ steps.server.outputs.ip }} << 'EOF'
-          echo "Unblocking Web GUI ports 3000 and 3001..."
+          echo "Unblocking Web GUI port 3001..."
 
-          # Remove DROP rules for ports 3000 and 3001
-          iptables -D INPUT -p tcp --dport 3000 -j DROP 2>/dev/null || true
+          # Remove DROP rules for port 3001
           iptables -D INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
-          ip6tables -D INPUT -p tcp --dport 3000 -j DROP 2>/dev/null || true
           ip6tables -D INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
 
           # Save rules
@@ -77,7 +73,7 @@ jobs:
             netfilter-persistent save
           fi
 
-          echo "GUI access enabled on ports 3000 (HTTP) and 3001 (HTTPS)."
+          echo "GUI access enabled on port 3001 (HTTPS)."
           echo "Login: admin / <VNC_PASSWORD>"
           EOF
 
@@ -85,8 +81,8 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no root@${{ steps.server.outputs.ip }} << 'EOF'
           echo ""
-          echo "=== Current iptables rules for GUI ports ==="
-          iptables -L INPUT -n | grep -E "(3000|3001)" || echo "No specific rules for 3000/3001 (GUI accessible)"
+          echo "=== Current iptables rules for GUI port ==="
+          iptables -L INPUT -n | grep "3001" || echo "No DROP rule for 3001 (GUI accessible)"
           echo ""
           echo "=== Container status ==="
           docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "(NAMES|obsidian)"
@@ -98,7 +94,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ inputs.action }}" == "disable" ]; then
             echo "### Status" >> $GITHUB_STEP_SUMMARY
-            echo "- ❌ Port 3000 (HTTP GUI): **Blocked**" >> $GITHUB_STEP_SUMMARY
             echo "- ❌ Port 3001 (HTTPS GUI): **Blocked**" >> $GITHUB_STEP_SUMMARY
             echo "- ✅ Port 3002 (MCP Server): **Still accessible**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -107,7 +102,6 @@ jobs:
             echo "Run this workflow with 'enable' to restore GUI access." >> $GITHUB_STEP_SUMMARY
           else
             echo "### Status" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Port 3000 (HTTP GUI): **Open**" >> $GITHUB_STEP_SUMMARY
             echo "- ✅ Port 3001 (HTTPS GUI): **Open**" >> $GITHUB_STEP_SUMMARY
             echo "- ✅ Port 3002 (MCP Server): **Open**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

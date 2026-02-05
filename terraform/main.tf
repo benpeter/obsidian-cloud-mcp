@@ -27,25 +27,6 @@ resource "hcloud_firewall" "obsidian" {
     source_ips = var.firewall_allowed_ipv6
   }
 
-  # Obsidian Web GUI HTTP (IPv4)
-  dynamic "rule" {
-    for_each = var.enable_ipv4 ? [1] : []
-    content {
-      direction  = "in"
-      protocol   = "tcp"
-      port       = "3000"
-      source_ips = var.firewall_allowed_ips
-    }
-  }
-
-  # Obsidian Web GUI HTTP (IPv6)
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "3000"
-    source_ips = var.firewall_allowed_ipv6
-  }
-
   # Obsidian Web GUI HTTPS (IPv4)
   dynamic "rule" {
     for_each = var.enable_ipv4 ? [1] : []
