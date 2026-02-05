@@ -14,9 +14,16 @@ write_files:
   - path: /opt/obsidian-mcp/.env
     permissions: '0600'
     content: |
-      # Authentication secrets - configure after Obsidian setup
+      # Domain for HTTPS (Caddy)
+      MCP_DOMAIN=${mcp_domain}
+
+      # Cloudflare Worker (OAuth + Token Introspection)
+      CLOUDFLARE_WORKER_URL=${cloudflare_worker_url}
+
+      # Obsidian REST API Key - configure after Obsidian setup
       OBSIDIAN_API_KEY=not_configured_yet
-      MCP_JWT_SECRET=${mcp_jwt_secret}
+
+      # Web GUI Authentication
       VNC_PASSWORD=${vnc_password}
 
   - path: /opt/obsidian-mcp/setup-complete.sh
@@ -27,7 +34,7 @@ write_files:
       echo "Obsidian MCP Server - Setup Complete"
       echo "=========================================="
       echo ""
-      echo "SECURITY: Authentication is ENABLED"
+      echo "SECURITY: OAuth + HTTPS enabled"
       echo ""
       echo "Server is running. Next steps:"
       echo ""
@@ -45,8 +52,11 @@ write_files:
       echo "4. Run the 'Configure API Key' GitHub workflow"
       echo "   OR manually update /opt/obsidian-mcp/.env"
       echo ""
-      echo "5. Generate JWT token for MCP access:"
-      echo "   See: scripts/generate-jwt.sh"
+      echo "5. MCP Server is available at:"
+      echo "   https://${mcp_domain}"
+      echo ""
+      echo "6. Add MCP connector in Claude.ai:"
+      echo "   Server URL: https://${mcp_domain}/mcp"
       echo ""
       echo "=========================================="
 
@@ -69,7 +79,7 @@ runcmd:
   - mkdir -p /opt/obsidian-mcp/config
   - mkdir -p /opt/obsidian-mcp/vault
 
-  # Start containers
+  # Start containers (Caddy will auto-obtain SSL certificate)
   - cd /opt/obsidian-mcp && docker compose up -d --build
 
   # Show completion message
@@ -77,5 +87,6 @@ runcmd:
 
 final_message: |
   Obsidian MCP Server deployment complete!
-  Access the GUI at https://$PUBLIC_IP:3001
-  Authentication is ENABLED - check setup-complete.sh output for credentials.
+  MCP Endpoint: https://${mcp_domain}
+  GUI Access: https://$PUBLIC_IP:3001
+  OAuth authentication is ENABLED via Cloudflare Worker.

@@ -34,25 +34,41 @@ variable "ssh_public_key" {
 }
 
 variable "vnc_password" {
-  description = "Password for VNC access to Obsidian GUI"
+  description = "Password for VNC/Web GUI access to Obsidian"
   type        = string
   sensitive   = true
 }
 
-variable "mcp_jwt_secret" {
-  description = "JWT secret for MCP server authentication (min 32 characters). Generate with: openssl rand -base64 48"
+# -----------------------------------------------------------------------------
+# Domain & HTTPS
+# -----------------------------------------------------------------------------
+
+variable "mcp_domain" {
+  description = "Domain name for MCP server (e.g., mcp.example.com). Required for HTTPS."
   type        = string
-  sensitive   = true
 }
+
+# -----------------------------------------------------------------------------
+# Cloudflare Worker (OAuth + Token Introspection)
+# -----------------------------------------------------------------------------
+
+variable "cloudflare_worker_url" {
+  description = "URL of the Cloudflare Worker that handles OAuth and token introspection (e.g., https://your-worker.workers.dev)"
+  type        = string
+}
+
+# -----------------------------------------------------------------------------
+# Firewall
+# -----------------------------------------------------------------------------
 
 variable "firewall_allowed_ips" {
-  description = "List of IPv4 addresses/ranges allowed to access the server (CIDR notation). Use 0.0.0.0/0 for any."
+  description = "List of IPv4 addresses/ranges allowed to access SSH and Web GUI (CIDR notation). Use 0.0.0.0/0 for any."
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
 
 variable "firewall_allowed_ipv6" {
-  description = "List of IPv6 addresses/ranges allowed to access the server (CIDR notation). Use ::/0 for any."
+  description = "List of IPv6 addresses/ranges allowed to access SSH and Web GUI (CIDR notation). Use ::/0 for any."
   type        = list(string)
   default     = ["::/0"]
 }

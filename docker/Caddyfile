@@ -1,0 +1,44 @@
+# Caddyfile for Obsidian MCP Server
+# Token validation via OAuth Token Introspection (RFC 7662)
+
+{$MCP_DOMAIN} {
+    # Protected Resource Metadata (RFC 9728)
+    # Tells clients where to authenticate
+    handle /.well-known/oauth-protected-resource {
+        header Content-Type application/json
+        respond `{
+  "resource": "https://{$MCP_DOMAIN}",
+  "authorization_servers": ["{$CLOUDFLARE_WORKER_URL}"],
+  "bearer_methods_supported": ["header"],
+  "scopes_supported": ["mcp"]
+}` 200
+    }
+
+    # MCP Server - Token validation handled by the server itself via introspection
+    handle /mcp* {
+        reverse_proxy mcp-server:3000
+    }
+
+    # Default - 404 for other paths
+    handle {
+        respond "Not Found" 404
+    }
+
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+
+    # Security headers
+    header {
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    }
+}
+
+# Health check endpoint
+:8080 {
+    respond /health "OK" 200
+}

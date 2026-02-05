@@ -3,6 +3,10 @@ name: Deploy Infrastructure
 on:
   workflow_dispatch:
     inputs:
+      mcp_domain:
+        description: 'Domain for MCP server (e.g., mcp.example.com)'
+        required: true
+        type: string
       server_type:
         description: 'Server type (cx23 = 2vCPU/4GB, cx33 = 4vCPU/8GB)'
         required: false
@@ -30,7 +34,8 @@ env:
   TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
   TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
   TF_VAR_vnc_password: ${{ secrets.VNC_PASSWORD }}
-  TF_VAR_mcp_jwt_secret: ${{ secrets.MCP_JWT_SECRET }}
+  TF_VAR_mcp_domain: ${{ inputs.mcp_domain }}
+  TF_VAR_cloudflare_worker_url: ${{ secrets.CLOUDFLARE_WORKER_URL }}
 
 jobs:
   deploy:
@@ -83,24 +88,26 @@ jobs:
           echo "- **IP Mode:** ${{ steps.outputs.outputs.ip_mode }}" >> $GITHUB_STEP_SUMMARY
           echo "- **IPv4:** \`${{ steps.outputs.outputs.server_ipv4 }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **IPv6:** \`${{ steps.outputs.outputs.server_ipv6 }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **VNC URL:** ${{ steps.outputs.outputs.vnc_url }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **MCP Endpoint:** ${{ steps.outputs.outputs.mcp_endpoint }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔐 Authentication" >> $GITHUB_STEP_SUMMARY
-          echo "Both services require authentication:" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔐 Endpoints" >> $GITHUB_STEP_SUMMARY
+          echo "- **MCP Server (HTTPS):** \`https://${{ inputs.mcp_domain }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Web GUI:** \`https://${{ steps.outputs.outputs.server_ipv4 }}:3001\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔑 Authentication" >> $GITHUB_STEP_SUMMARY
           echo "- **Web GUI:** Basic Auth (user: \`admin\`, password: \`VNC_PASSWORD\` secret)" >> $GITHUB_STEP_SUMMARY
-          echo "- **MCP Server:** JWT Bearer token (secret: \`MCP_JWT_SECRET\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- **MCP Server:** OAuth 2.0 via Cloudflare Worker" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "1. Wait 2-3 minutes for Docker containers to start" >> $GITHUB_STEP_SUMMARY
-          echo "2. Open the VNC URL and log in (user: \`admin\`)" >> $GITHUB_STEP_SUMMARY
-          echo "3. Log in to Obsidian Sync manually" >> $GITHUB_STEP_SUMMARY
-          echo "4. Install and configure the 'Local REST API' plugin" >> $GITHUB_STEP_SUMMARY
+          echo "1. **DNS:** Ensure \`${{ inputs.mcp_domain }}\` points to \`${{ steps.outputs.outputs.server_ipv4 }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Wait** 3-5 minutes for Docker containers and SSL certificate" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Open** the Web GUI URL and log in (user: \`admin\`)" >> $GITHUB_STEP_SUMMARY
+          echo "4. **Log in** to Obsidian Sync manually" >> $GITHUB_STEP_SUMMARY
+          echo "5. **Install** 'Local REST API' plugin" >> $GITHUB_STEP_SUMMARY
           echo "   - Enable 'Bind to all interfaces'" >> $GITHUB_STEP_SUMMARY
           echo "   - Copy the API key" >> $GITHUB_STEP_SUMMARY
-          echo "5. Run the 'Configure API Key' workflow with the copied key" >> $GITHUB_STEP_SUMMARY
-          echo "6. Generate JWT token: \`./scripts/generate-jwt.sh <MCP_JWT_SECRET> 720\`" >> $GITHUB_STEP_SUMMARY
-          echo "7. Use the JWT token in your MCP client configuration" >> $GITHUB_STEP_SUMMARY
+          echo "6. **Run** the 'Configure API Key' workflow with the copied key" >> $GITHUB_STEP_SUMMARY
+          echo "7. **Add MCP connector** in Claude.ai:" >> $GITHUB_STEP_SUMMARY
+          echo "   - Server URL: \`https://${{ inputs.mcp_domain }}/mcp\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Save Terraform State
         if: always()

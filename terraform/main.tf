@@ -27,7 +27,45 @@ resource "hcloud_firewall" "obsidian" {
     source_ips = var.firewall_allowed_ipv6
   }
 
-  # Obsidian Web GUI HTTPS (IPv4)
+  # HTTP for ACME/Let's Encrypt (IPv4)
+  dynamic "rule" {
+    for_each = var.enable_ipv4 ? [1] : []
+    content {
+      direction  = "in"
+      protocol   = "tcp"
+      port       = "80"
+      source_ips = ["0.0.0.0/0"]  # Must be open for Let's Encrypt
+    }
+  }
+
+  # HTTP for ACME/Let's Encrypt (IPv6)
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "80"
+    source_ips = ["::/0"]  # Must be open for Let's Encrypt
+  }
+
+  # HTTPS - MCP Server via Caddy (IPv4)
+  dynamic "rule" {
+    for_each = var.enable_ipv4 ? [1] : []
+    content {
+      direction  = "in"
+      protocol   = "tcp"
+      port       = "443"
+      source_ips = ["0.0.0.0/0"]  # Claude.ai needs access
+    }
+  }
+
+  # HTTPS - MCP Server via Caddy (IPv6)
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "443"
+    source_ips = ["::/0"]  # Claude.ai needs access
+  }
+
+  # Obsidian Web GUI HTTPS (IPv4) - restricted access
   dynamic "rule" {
     for_each = var.enable_ipv4 ? [1] : []
     content {
@@ -38,7 +76,7 @@ resource "hcloud_firewall" "obsidian" {
     }
   }
 
-  # Obsidian Web GUI HTTPS (IPv6)
+  # Obsidian Web GUI HTTPS (IPv6) - restricted access
   rule {
     direction  = "in"
     protocol   = "tcp"
@@ -46,27 +84,8 @@ resource "hcloud_firewall" "obsidian" {
     source_ips = var.firewall_allowed_ipv6
   }
 
-  # MCP Server (IPv4)
-  dynamic "rule" {
-    for_each = var.enable_ipv4 ? [1] : []
-    content {
-      direction  = "in"
-      protocol   = "tcp"
-      port       = "3002"
-      source_ips = var.firewall_allowed_ips
-    }
-  }
-
-  # MCP Server (IPv6)
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "3002"
-    source_ips = var.firewall_allowed_ipv6
-  }
-
   # Note: Port 27123 (Obsidian REST API) intentionally NOT exposed
-  # It's only accessible within the Docker network for security
+  # Note: Port 3002 removed - MCP now accessible via Caddy on 443
 }
 
 # Server
@@ -86,8 +105,9 @@ resource "hcloud_server" "obsidian" {
   }
 
   user_data = templatefile("${path.module}/../scripts/cloud-init.yml", {
-    vnc_password   = var.vnc_password
-    mcp_jwt_secret = var.mcp_jwt_secret
+    vnc_password          = var.vnc_password
+    mcp_domain            = var.mcp_domain
+    cloudflare_worker_url = var.cloudflare_worker_url
   })
 
   labels = {

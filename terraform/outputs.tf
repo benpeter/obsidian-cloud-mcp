@@ -25,8 +25,8 @@ output "vnc_url" {
 }
 
 output "mcp_endpoint" {
-  description = "MCP Server endpoint URL"
-  value       = "http://${local.server_ip_url}:3002"
+  description = "MCP Server endpoint URL (HTTPS via Caddy)"
+  value       = "https://${var.mcp_domain}"
 }
 
 output "ip_mode" {
@@ -42,22 +42,25 @@ output "next_steps" {
     ║                    DEPLOYMENT COMPLETE                         ║
     ╠════════════════════════════════════════════════════════════════╣
     ║                                                                ║
-    ║  IP Mode: ${var.enable_ipv4 ? "Dual Stack (IPv4 + IPv6)" : "IPv6 Only"}
+    ║  MCP Endpoint: https://${var.mcp_domain}
+    ║  Web GUI: https://${local.server_ip_url}:3001
     ║                                                                ║
-    ║  1. Wait 2-3 minutes for Docker containers to start            ║
+    ║  1. Ensure DNS for ${var.mcp_domain} points to ${local.server_ip}
     ║                                                                ║
-    ║  2. Open VNC in browser:                                       ║
-    ║     https://${local.server_ip_url}:3001
+    ║  2. Wait 3-5 minutes for containers + SSL certificate          ║
     ║                                                                ║
-    ║  3. Login to Obsidian Sync manually                            ║
+    ║  3. Open Web GUI and log in (user: admin)                      ║
     ║                                                                ║
-    ║  4. Install "Local REST API" plugin:                            ║
+    ║  4. Log in to Obsidian Sync manually                           ║
+    ║                                                                ║
+    ║  5. Install "Local REST API" plugin:                           ║
     ║     - Enable "Bind to all interfaces" (0.0.0.0)                ║
     ║     - Copy the API key                                         ║
     ║                                                                ║
-    ║  5. SSH to server, add API key to /opt/obsidian-mcp/.env       ║
+    ║  6. Run "Configure API Key" workflow                           ║
     ║                                                                ║
-    ║  6. Restart MCP server: docker compose restart mcp-server      ║
+    ║  7. Add MCP connector in Claude.ai:                             ║
+    ║     Server URL: https://${var.mcp_domain}/mcp
     ║                                                                ║
     ╚════════════════════════════════════════════════════════════════╝
   EOT
