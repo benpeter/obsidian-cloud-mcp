@@ -1,0 +1,128 @@
+name: Configure API Key
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_key:
+        description: 'Obsidian REST API Key (from Local REST API plugin)'
+        required: true
+        type: string
+
+env:
+  TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+  TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+  TF_VAR_vnc_password: ${{ secrets.VNC_PASSWORD }}
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Download Terraform State
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state
+          path: terraform/
+        continue-on-error: true
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Get Server IP
+        working-directory: terraform
+        id: server
+        run: |
+          echo "ipv4=$(terraform output -raw server_ipv4 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+          echo "ipv6=$(terraform output -raw server_ipv6 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # Add server to known hosts
+          if [ -n "${{ steps.server.outputs.ipv4 }}" ] && [ "${{ steps.server.outputs.ipv4 }}" != "IPv4 disabled" ]; then
+            ssh-keyscan -H ${{ steps.server.outputs.ipv4 }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          fi
+
+      - name: Configure API Key on Server
+        run: |
+          # Determine which IP to use
+          if [ -n "${{ steps.server.outputs.ipv4 }}" ] && [ "${{ steps.server.outputs.ipv4 }}" != "IPv4 disabled" ]; then
+            SERVER_IP="${{ steps.server.outputs.ipv4 }}"
+          else
+            SERVER_IP="${{ steps.server.outputs.ipv6 }}"
+          fi
+
+          echo "Connecting to server at $SERVER_IP..."
+
+          ssh root@$SERVER_IP << 'ENDSSH'
+          cd /opt/obsidian-mcp
+
+          # Update .env file with API key
+          echo "OBSIDIAN_API_KEY=${{ inputs.api_key }}" > .env
+
+          # Restart MCP server to pick up new key
+          docker compose restart mcp-server
+
+          echo "API key configured and MCP server restarted."
+
+          # Wait for server to start
+          sleep 10
+
+          # Check status
+          docker ps --filter name=obsidian-mcp --format "table {{.Names}}\t{{.Status}}"
+          ENDSSH
+
+      - name: Verify MCP Server
+        run: |
+          if [ -n "${{ steps.server.outputs.ipv4 }}" ] && [ "${{ steps.server.outputs.ipv4 }}" != "IPv4 disabled" ]; then
+            SERVER_IP="${{ steps.server.outputs.ipv4 }}"
+          else
+            SERVER_IP="[${{ steps.server.outputs.ipv6 }}]"
+          fi
+
+          echo "Testing MCP endpoint at http://$SERVER_IP:3002/mcp ..."
+
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "http://$SERVER_IP:3002/mcp" \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"initialize","id":1}' \
+            --connect-timeout 10) || true
+
+          if [ "$RESPONSE" = "200" ]; then
+            echo "MCP server is responding!"
+          else
+            echo "MCP server returned HTTP $RESPONSE (this may be normal for session-based MCP)"
+          fi
+
+      - name: Configuration Summary
+        run: |
+          if [ -n "${{ steps.server.outputs.ipv4 }}" ] && [ "${{ steps.server.outputs.ipv4 }}" != "IPv4 disabled" ]; then
+            SERVER_IP="${{ steps.server.outputs.ipv4 }}"
+            MCP_URL="http://$SERVER_IP:3002/mcp"
+          else
+            SERVER_IP="${{ steps.server.outputs.ipv6 }}"
+            MCP_URL="http://[$SERVER_IP]:3002/mcp"
+          fi
+
+          echo "## API Key Configured" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The Obsidian REST API key has been configured on the server." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### MCP Endpoint" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "$MCP_URL" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "You can now use this endpoint in your Claude MCP configuration." >> $GITHUB_STEP_SUMMARY

@@ -2,13 +2,7 @@
 
 Deploy an Obsidian MCP Server in the cloud with Obsidian Sync support.
 
-**[English](#english) | [Deutsch](#deutsch)**
-
----
-
-## English
-
-### What is this?
+## What is this?
 
 This repository provides Infrastructure-as-Code to deploy a cloud-based [Obsidian](https://obsidian.md) instance with an MCP (Model Context Protocol) server. This allows AI assistants like Claude to access your Obsidian vault from anywhere.
 
@@ -16,7 +10,7 @@ This repository provides Infrastructure-as-Code to deploy a cloud-based [Obsidia
 
 **The Solution:** Run Obsidian in the cloud with Sync enabled, and expose it via an MCP server.
 
-### Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -40,7 +34,7 @@ This repository provides Infrastructure-as-Code to deploy a cloud-based [Obsidia
                     └─────────────────┘
 ```
 
-### Important Limitation
+## Important Limitation
 
 **Obsidian Sync requires a one-time manual login via VNC.** There is no headless CLI authentication for Obsidian Sync.
 
@@ -50,16 +44,16 @@ This repository provides Infrastructure-as-Code to deploy a cloud-based [Obsidia
 
 After the initial login, Sync runs automatically.
 
-### Prerequisites
+## Prerequisites
 
 1. **Hetzner Cloud Account** - [Sign up here](https://console.hetzner.cloud/)
 2. **Obsidian Sync License** - [Get it here](https://obsidian.md/sync)
 3. **Terraform** installed locally (optional, for local deployment)
 4. **SSH Key Pair** for server access
 
-### Quick Start
+## Quick Start
 
-#### Option A: GitHub Actions (Recommended)
+### Option A: GitHub Actions (Recommended)
 
 1. **Fork this repository**
 
@@ -77,11 +71,15 @@ After the initial login, Sync runs automatically.
    - Open the VNC URL from the workflow output
    - Log in to Obsidian Sync
    - Install "Local REST API" plugin
+   - **Important:** Enable "Bind to all network interfaces" in plugin settings
    - Copy the API key
-   - SSH to server and add key to `/opt/obsidian-mcp/.env`
-   - Restart: `docker compose restart mcp-server`
 
-#### Option B: Local Terraform
+5. **Configure the API key:**
+   - Go to Actions → Configure API Key → Run workflow
+   - Enter your API key
+   - The workflow will configure the server and restart the MCP server
+
+### Option B: Local Terraform
 
 1. **Clone and configure:**
    ```bash
@@ -98,32 +96,46 @@ After the initial login, Sync runs automatically.
    terraform apply
    ```
 
-3. **Complete manual setup** (same as Option A, step 4)
+3. **Complete manual setup** (same as Option A, steps 4-5)
 
-### Configuration
+## Configuration
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `hcloud_token` | Hetzner API token | (required) |
 | `ssh_public_key` | SSH public key | (required) |
 | `vnc_password` | VNC access password | (required) |
-| `server_type` | Hetzner server type | `cx22` |
+| `server_type` | Hetzner server type | `cx23` |
 | `server_location` | Server location | `nbg1` |
-| `firewall_allowed_ips` | Allowed IP ranges | `["0.0.0.0/0"]` |
+| `enable_ipv4` | Enable IPv4 (adds €0.50/month) | `true` |
+| `firewall_allowed_ips` | Allowed IPv4 ranges | `["0.0.0.0/0"]` |
+| `firewall_allowed_ipv6` | Allowed IPv6 ranges | `["::/0"]` |
 
-### Server Types
+## Server Types
 
 | Type | Specs | Monthly Cost |
 |------|-------|--------------|
-| `cx22` | 2 vCPU, 4 GB RAM | ~€4 |
-| `cx32` | 4 vCPU, 8 GB RAM | ~€8 |
+| `cx23` | 2 vCPU, 4 GB RAM | ~€3.56 |
+| `cx33` | 4 vCPU, 8 GB RAM | ~€5.94 |
 
-### Post-Deployment Setup
+**Note:** Add €0.50/month for IPv4 address. IPv6-only is supported if you have IPv6 connectivity.
+
+## GitHub Workflows
+
+| Workflow | Description |
+|----------|-------------|
+| **Deploy Infrastructure** | Creates the Hetzner server with Obsidian + MCP |
+| **Configure API Key** | Sets the REST API key on the server |
+| **Update Docker Images** | Pulls latest images and restarts containers |
+| **Destroy Infrastructure** | Removes all cloud resources |
+
+## Post-Deployment Setup
 
 1. **Access Obsidian GUI:**
    ```
    https://YOUR_SERVER_IP:3001
    ```
+   (Accept the self-signed certificate warning)
 
 2. **Login to Obsidian:**
    - Open Obsidian
@@ -135,9 +147,12 @@ After the initial login, Sync runs automatically.
    - Go to Settings → Community plugins
    - Browse and install "Local REST API"
    - Enable the plugin
+   - **Important:** Enable "Bind to all network interfaces" (0.0.0.0)
    - Copy the API key from plugin settings
 
 4. **Configure MCP Server:**
+
+   Use the "Configure API Key" workflow, or manually:
    ```bash
    ssh root@YOUR_SERVER_IP
    echo "OBSIDIAN_API_KEY=your_api_key_here" > /opt/obsidian-mcp/.env
@@ -145,12 +160,7 @@ After the initial login, Sync runs automatically.
    docker compose restart mcp-server
    ```
 
-5. **Verify:**
-   ```bash
-   curl http://YOUR_SERVER_IP:3002/health
-   ```
-
-### Using with Claude
+## Using with Claude
 
 Add the MCP endpoint to your Claude configuration:
 
@@ -158,37 +168,45 @@ Add the MCP endpoint to your Claude configuration:
 {
   "mcpServers": {
     "obsidian": {
-      "url": "http://YOUR_SERVER_IP:3002"
+      "url": "http://YOUR_SERVER_IP:3002/mcp"
     }
   }
 }
 ```
 
-### Costs
+## Costs
 
 | Component | Monthly Cost |
 |-----------|--------------|
-| Hetzner cx22 Server | ~€4 |
+| Hetzner cx23 Server | ~€3.56 |
+| IPv4 Address | €0.50 |
 | Obsidian Sync | $4-8 |
 | **Total** | **~€8-12/month** |
+
+## Security
+
+- **REST API not exposed externally** - Port 27123 is only accessible within the Docker network
+- **Firewall rules** - Only necessary ports are open (22, 3000, 3001, 3002)
+- **IP restrictions** - You can limit access to specific IPs via `firewall_allowed_ips`
+- **Automatic cleanup** - Failed deployments automatically clean up resources
 
 ### Security Recommendations
 
 1. **Restrict IP access** - Set `firewall_allowed_ips` to your IPs only
 2. **Use strong passwords** - Especially for VNC
-3. **Enable HTTPS** - The linuxserver/obsidian image supports it on port 3001
-4. **Regular updates** - Use the Update workflow to keep images current
-5. **Monitor access** - Check server logs regularly
+3. **Regular updates** - Use the Update workflow to keep images current
+4. **Monitor access** - Check server logs regularly
 
-### Troubleshooting
+## Troubleshooting
 
 **VNC not accessible:**
-- Wait 2-3 minutes after deployment
+- Wait 2-3 minutes after deployment for Docker containers to start
 - Check: `docker logs obsidian`
 
 **MCP server not responding:**
 - Verify API key is set: `cat /opt/obsidian-mcp/.env`
-- Check: `docker logs obsidian-mcp`
+- Ensure REST API plugin is set to bind to 0.0.0.0
+- Check logs: `docker exec obsidian-mcp cat /app/logs/error.log`
 - Restart: `docker compose restart mcp-server`
 
 **Obsidian Sync not working:**
@@ -196,10 +214,10 @@ Add the MCP endpoint to your Claude configuration:
 - Check internet connectivity from server
 
 **Out of memory:**
-- Upgrade to cx32 server type
+- Upgrade to cx33 server type
 - Check: `free -h` on server
 
-### Cleanup
+## Cleanup
 
 To destroy all infrastructure:
 
@@ -208,108 +226,7 @@ cd terraform
 terraform destroy
 ```
 
-Or use the "Destroy Infrastructure" GitHub Action.
-
----
-
-## Deutsch
-
-### Was ist das?
-
-Dieses Repository stellt Infrastructure-as-Code bereit, um eine cloud-basierte [Obsidian](https://obsidian.md)-Instanz mit einem MCP (Model Context Protocol) Server zu deployen. So können KI-Assistenten wie Claude von überall auf deinen Obsidian Vault zugreifen.
-
-**Das Problem:** Obsidian läuft lokal, sodass KI-Assistenten nicht auf deinen Vault zugreifen können, wenn du mobil unterwegs bist oder cloud-basierte KI-Interfaces nutzt.
-
-**Die Lösung:** Obsidian in der Cloud betreiben mit aktiviertem Sync und über einen MCP Server zugänglich machen.
-
-### Wichtige Einschränkung
-
-**Obsidian Sync erfordert ein einmaliges manuelles Login via VNC.** Es gibt keine headless CLI-Authentifizierung für Obsidian Sync.
-
-- Infrastruktur-Deployment = vollautomatisch ✅
-- Docker Container Start = vollautomatisch ✅
-- **Erstes Obsidian Sync Login = MANUELL via Browser/VNC** ⚠️
-
-Nach dem initialen Login läuft Sync automatisch weiter.
-
-### Voraussetzungen
-
-1. **Hetzner Cloud Account** - [Hier registrieren](https://console.hetzner.cloud/)
-2. **Obsidian Sync Lizenz** - [Hier kaufen](https://obsidian.md/sync)
-3. **Terraform** lokal installiert (optional, für lokales Deployment)
-4. **SSH Key Pair** für Server-Zugriff
-
-### Schnellstart
-
-#### Option A: GitHub Actions (Empfohlen)
-
-1. **Repository forken**
-
-2. **GitHub Secrets hinzufügen:**
-   - `HCLOUD_TOKEN` - Dein Hetzner API Token
-   - `SSH_PUBLIC_KEY` - Dein öffentlicher SSH Key
-   - `SSH_PRIVATE_KEY` - Dein privater SSH Key (für Updates)
-   - `VNC_PASSWORD` - Passwort für VNC-Zugang (min. 6 Zeichen)
-
-3. **Deploy Workflow starten:**
-   - Gehe zu Actions → Deploy Infrastructure → Run workflow
-   - Warte auf Abschluss (~3-5 Minuten)
-
-4. **Manuelles Setup abschließen:**
-   - Öffne die VNC URL aus dem Workflow-Output
-   - In Obsidian Sync einloggen
-   - "Local REST API" Plugin installieren
-   - API Key kopieren
-   - Per SSH auf den Server und Key in `/opt/obsidian-mcp/.env` eintragen
-   - Neustart: `docker compose restart mcp-server`
-
-#### Option B: Lokales Terraform
-
-1. **Klonen und konfigurieren:**
-   ```bash
-   git clone https://github.com/DEIN_USERNAME/obsidian-cloud-mcp.git
-   cd obsidian-cloud-mcp/terraform
-   cp terraform.tfvars.example terraform.tfvars
-   # terraform.tfvars mit deinen Werten bearbeiten
-   ```
-
-2. **Deployen:**
-   ```bash
-   terraform init
-   terraform plan
-   terraform apply
-   ```
-
-3. **Manuelles Setup abschließen** (wie Option A, Schritt 4)
-
-### Kosten
-
-| Komponente | Monatliche Kosten |
-|------------|-------------------|
-| Hetzner cx22 Server | ~€4 |
-| Obsidian Sync | €4-8 |
-| **Gesamt** | **~€8-12/Monat** |
-
-### Sicherheitsempfehlungen
-
-1. **IP-Zugriff einschränken** - `firewall_allowed_ips` auf deine IPs setzen
-2. **Starke Passwörter** - Besonders für VNC
-3. **HTTPS aktivieren** - Das linuxserver/obsidian Image unterstützt es auf Port 3001
-4. **Regelmäßige Updates** - Update Workflow nutzen
-5. **Zugriffe überwachen** - Server-Logs regelmäßig prüfen
-
-### Aufräumen
-
-Um alle Infrastruktur zu löschen:
-
-```bash
-cd terraform
-terraform destroy
-```
-
-Oder die "Destroy Infrastructure" GitHub Action verwenden.
-
----
+Or use the "Destroy Infrastructure" GitHub Action (type "DESTROY" to confirm).
 
 ## Contributing
 
