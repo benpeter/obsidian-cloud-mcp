@@ -61,7 +61,17 @@ After the initial login, Sync runs automatically.
    - `HCLOUD_TOKEN` - Your Hetzner API token
    - `SSH_PUBLIC_KEY` - Your SSH public key
    - `SSH_PRIVATE_KEY` - Your SSH private key (for updates)
-   - `VNC_PASSWORD` - Password for VNC access (min 6 chars)
+   - `VNC_PASSWORD` - Password for VNC/Web GUI access (min 6 chars)
+   - `MCP_JWT_SECRET` - JWT secret for MCP authentication (min 32 chars)
+
+   Generate secure secrets:
+   ```bash
+   # For VNC_PASSWORD
+   openssl rand -base64 16
+
+   # For MCP_JWT_SECRET
+   openssl rand -base64 48
+   ```
 
 3. **Run the Deploy workflow:**
    - Go to Actions → Deploy Infrastructure → Run workflow
@@ -104,7 +114,8 @@ After the initial login, Sync runs automatically.
 |----------|-------------|---------|
 | `hcloud_token` | Hetzner API token | (required) |
 | `ssh_public_key` | SSH public key | (required) |
-| `vnc_password` | VNC access password | (required) |
+| `vnc_password` | VNC/Web GUI password | (required) |
+| `mcp_jwt_secret` | JWT secret for MCP auth (min 32 chars) | (required) |
 | `server_type` | Hetzner server type | `cx23` |
 | `server_location` | Server location | `nbg1` |
 | `enable_ipv4` | Enable IPv4 (adds €0.50/month) | `true` |
@@ -162,17 +173,39 @@ After the initial login, Sync runs automatically.
 
 ## Using with Claude
 
-Add the MCP endpoint to your Claude configuration:
+### 1. Generate a JWT Token
+
+Use the provided script to generate an authentication token:
+
+```bash
+# Clone or download the scripts folder
+./scripts/generate-jwt.sh "YOUR_MCP_JWT_SECRET" 720  # 720 hours = 30 days
+```
+
+Or generate manually:
+```bash
+# The script creates a HS256-signed JWT with your secret
+# Adjust expiry_hours as needed (default: 24)
+```
+
+### 2. Configure Your MCP Client
+
+Add the MCP endpoint with authentication to your Claude configuration:
 
 ```json
 {
   "mcpServers": {
     "obsidian": {
-      "url": "http://YOUR_SERVER_IP:3002/mcp"
+      "url": "http://YOUR_SERVER_IP:3002/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      }
     }
   }
 }
 ```
+
+**Note:** Replace `YOUR_JWT_TOKEN` with the token generated in step 1.
 
 ## Costs
 
@@ -185,6 +218,21 @@ Add the MCP endpoint to your Claude configuration:
 
 ## Security
 
+### Authentication
+
+Both services require authentication:
+
+| Service | Auth Type | Credentials |
+|---------|-----------|-------------|
+| Web GUI (VNC) | Basic Auth | Username: `admin`, Password: `VNC_PASSWORD` |
+| MCP Server | JWT Bearer | Token generated from `MCP_JWT_SECRET` |
+
+**Important:** Without valid credentials:
+- Web GUI returns `401 Unauthorized`
+- MCP Server returns `{"error": {"code": "UNAUTHORIZED", ...}}`
+
+### Infrastructure Security
+
 - **REST API not exposed externally** - Port 27123 is only accessible within the Docker network
 - **Firewall rules** - Only necessary ports are open (22, 3000, 3001, 3002)
 - **IP restrictions** - You can limit access to specific IPs via `firewall_allowed_ips`
@@ -193,9 +241,10 @@ Add the MCP endpoint to your Claude configuration:
 ### Security Recommendations
 
 1. **Restrict IP access** - Set `firewall_allowed_ips` to your IPs only
-2. **Use strong passwords** - Especially for VNC
-3. **Regular updates** - Use the Update workflow to keep images current
-4. **Monitor access** - Check server logs regularly
+2. **Use strong secrets** - Generate with `openssl rand -base64`
+3. **Rotate JWT tokens** - Generate new tokens periodically
+4. **Regular updates** - Use the Update workflow to keep images current
+5. **Monitor access** - Check server logs regularly
 
 ## Troubleshooting
 

@@ -39,6 +39,12 @@ variable "vnc_password" {
   sensitive   = true
 }
 
+variable "mcp_jwt_secret" {
+  description = "JWT secret for MCP server authentication (min 32 characters). Generate with: openssl rand -base64 48"
+  type        = string
+  sensitive   = true
+}
+
 variable "firewall_allowed_ips" {
   description = "List of IPv4 addresses/ranges allowed to access the server (CIDR notation). Use 0.0.0.0/0 for any."
   type        = list(string)

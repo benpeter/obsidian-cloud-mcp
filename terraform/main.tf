@@ -105,7 +105,8 @@ resource "hcloud_server" "obsidian" {
   }
 
   user_data = templatefile("${path.module}/../scripts/cloud-init.yml", {
-    vnc_password = var.vnc_password
+    vnc_password   = var.vnc_password
+    mcp_jwt_secret = var.mcp_jwt_secret
   })
 
   labels = {

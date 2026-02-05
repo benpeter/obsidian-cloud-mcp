@@ -14,8 +14,10 @@ write_files:
   - path: /opt/obsidian-mcp/.env
     permissions: '0600'
     content: |
-      # Obsidian REST API Key - configure after manual setup
+      # Authentication secrets - configure after Obsidian setup
       OBSIDIAN_API_KEY=not_configured_yet
+      MCP_JWT_SECRET=${mcp_jwt_secret}
+      VNC_PASSWORD=${vnc_password}
 
   - path: /opt/obsidian-mcp/setup-complete.sh
     permissions: '0755'
@@ -25,18 +27,26 @@ write_files:
       echo "Obsidian MCP Server - Setup Complete"
       echo "=========================================="
       echo ""
+      echo "SECURITY: Authentication is ENABLED"
+      echo ""
       echo "Server is running. Next steps:"
       echo ""
       echo "1. Access Obsidian GUI:"
       echo "   https://$(curl -s ifconfig.me):3001"
+      echo "   Username: admin"
+      echo "   Password: (from VNC_PASSWORD secret)"
       echo ""
       echo "2. Login to Obsidian Sync"
       echo ""
       echo "3. Install 'Local REST API' plugin"
+      echo "   - Enable 'Bind to all interfaces'"
+      echo "   - Copy the API key"
       echo ""
-      echo "4. Copy API key to /opt/obsidian-mcp/.env"
+      echo "4. Run the 'Configure API Key' GitHub workflow"
+      echo "   OR manually update /opt/obsidian-mcp/.env"
       echo ""
-      echo "5. Restart: cd /opt/obsidian-mcp && docker compose restart"
+      echo "5. Generate JWT token for MCP access:"
+      echo "   See: scripts/generate-jwt.sh"
       echo ""
       echo "=========================================="
 
@@ -52,6 +62,7 @@ runcmd:
   - git clone --depth 1 https://github.com/benpeter/obsidian-cloud-mcp.git /tmp/obsidian-setup
   - cp -r /tmp/obsidian-setup/docker/* /opt/obsidian-mcp/
   - cp -r /tmp/obsidian-setup/mcp-server /opt/obsidian-mcp/
+  - cp -r /tmp/obsidian-setup/scripts /opt/obsidian-mcp/
   - rm -rf /tmp/obsidian-setup
 
   # Create data directories
@@ -67,3 +78,4 @@ runcmd:
 final_message: |
   Obsidian MCP Server deployment complete!
   Access the GUI at https://$PUBLIC_IP:3001
+  Authentication is ENABLED - check setup-complete.sh output for credentials.
