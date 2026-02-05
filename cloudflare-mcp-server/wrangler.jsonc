@@ -1,0 +1,56 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "obsidian-mcp-oauth-proxy",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-03-10",
+	"compatibility_flags": ["nodejs_compat"],
+	/**
+	 * Secrets (set via wrangler secret put):
+	 * - GITHUB_CLIENT_ID
+	 * - GITHUB_CLIENT_SECRET
+	 * - COOKIE_ENCRYPTION_KEY
+	 * - MCP_PROXY_SECRET
+	 */
+	"vars": {
+		"HETZNER_MCP_URL": "https://REDACTED_DOMAIN"
+	},
+	"kv_namespaces": [
+		{
+			"binding": "OAUTH_KV",
+			"id": "99b981273ba543e3b6d2790ec0acaf1e"
+		}
+	],
+	/**
+	 * Durable Object for OAuthProvider token storage
+	 * Required by @cloudflare/workers-oauth-provider
+	 */
+	"migrations": [
+		{
+			"new_sqlite_classes": ["OAuthTokenStore"],
+			"tag": "v1"
+		},
+		{
+			"renamed_classes": [
+				{
+					"from": "OAuthTokenStore",
+					"to": "ObsidianMcpProxy"
+				}
+			],
+			"tag": "v2"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "ObsidianMcpProxy",
+				"name": "MCP_OBJECT"
+			}
+		]
+	},
+	"observability": {
+		"enabled": true
+	},
+	"dev": {
+		"port": 8788
+	}
+}
