@@ -1,5 +1,7 @@
 # Obsidian Cloud MCP
 
+[![100% Vibe_Coded](https://img.shields.io/badge/100%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
+
 [![Vibe Coded](https://img.shields.io/badge/0%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
 
 Deploy an Obsidian MCP Server in the cloud with Sync support. Access your vault from Claude.ai on any device, including mobile.
