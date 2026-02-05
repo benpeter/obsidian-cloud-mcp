@@ -101,3 +101,4 @@ jobs:
             terraform/terraform.tfstate
             terraform/terraform.tfstate.backup
           retention-days: 90
+          if-no-files-found: warn
