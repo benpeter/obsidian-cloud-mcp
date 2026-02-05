@@ -15,14 +15,42 @@ This repository provides Infrastructure-as-Code to deploy a cloud-based [Obsidia
 The system consists of two main components: a **Hetzner cloud server** running Obsidian and the MCP server, and a **Cloudflare Worker** handling OAuth authentication.
 
 ```mermaid
+graph LR
+    subgraph "Hetzner Server (Docker Compose)"
+        direction TB
+        C["<b>Caddy</b><br/>:80, :443<br/>Auto HTTPS"]
+        M["<b>MCP Server</b><br/>:3000 (internal)<br/>Token Introspection"]
+        O["<b>Obsidian</b><br/>:27123 (internal)<br/>:3001 (GUI)"]
+        C --> M --> O
+    end
+
+    subgraph "Cloudflare"
+        W["<b>Worker</b><br/>OAuth + Introspect"]
+    end
+
+    subgraph "External"
+        GH["GitHub OAuth"]
+        LE["Let's Encrypt"]
+        SYNC["Obsidian Sync"]
+    end
+
+    W --> GH
+    C --> LE
+    O --> SYNC
+    M -.->|"Token Introspection"| W
+```
+
+### Detailed Component View
+
+```mermaid
 graph TB
     subgraph "User Devices"
         claude["Claude.ai<br/>(any device)"]
-        browser["Browser<br/>(initial Sync login)"]
+        browser["Browser<br/>(initial setup)"]
     end
 
     subgraph "Cloudflare Edge"
-        worker["Cloudflare Worker<br/><b>OAuth Provider</b><br/>obsidian-mcp-oauth-proxy"]
+        worker["Cloudflare Worker<br/><b>OAuth Provider</b>"]
         kv["KV Store<br/>(tokens, clients)"]
         do["Durable Object<br/>(session state)"]
         worker --- kv
@@ -35,8 +63,8 @@ graph TB
 
     subgraph "Hetzner Cloud Server"
         caddy["Caddy<br/>Automatic HTTPS"]
-        mcp["MCP Server<br/>benpeter/obsidian-mcp-server<br/>(Token Introspection)"]
-        obsidian["Obsidian<br/>+ Sync + REST API Plugin"]
+        mcp["MCP Server<br/>(Token Introspection)"]
+        obsidian["Obsidian<br/>+ Sync + Local REST API"]
         gui["KasmVNC Web GUI<br/>:3001"]
 
         caddy -->|":443 → :3000"| mcp
@@ -53,7 +81,7 @@ graph TB
     claude -->|"7. MCP + Bearer Token"| caddy
     mcp -->|"8. Validate Token"| worker
 
-    browser -->|"One-time Sync login"| gui
+    browser -->|"One-time setup"| gui
 
     style worker fill:#f59e0b,color:#000
     style mcp fill:#7c3aed,color:#fff
@@ -101,43 +129,21 @@ sequenceDiagram
     H-->>C: MCP response (tools, resources)
 ```
 
-### Infrastructure Overview
+## Important Limitations
 
-```mermaid
-graph LR
-    subgraph "Hetzner Server (Docker Compose)"
-        direction TB
-        C["<b>Caddy</b><br/>:80, :443<br/>Auto HTTPS"]
-        M["<b>MCP Server</b><br/>:3000 (internal)<br/>Token Introspection"]
-        O["<b>Obsidian</b><br/>:27123 (internal)<br/>:3001 (GUI)"]
-        C --> M --> O
-    end
+> **Manual steps required after deployment.** Infrastructure deployment, HTTPS, and OAuth are fully automated, but two things need manual setup via the Web GUI:
 
-    subgraph "Cloudflare"
-        W["<b>Worker</b><br/>OAuth + Introspect"]
-    end
+1. **Obsidian Sync login** — There is no headless CLI authentication for Obsidian Sync. You must log in once via the Web GUI.
+2. **Local REST API plugin** — The MCP server communicates with Obsidian via the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) community plugin. You must install and configure it manually:
+   - Open Obsidian Settings (in the Web GUI)
+   - Go to **Community plugins** → Browse → Search for **"Local REST API"**
+   - Install and enable the plugin
+   - Go to **Settings → Local REST API**:
+     - Enable **"Bind to all network interfaces"** (required for Docker networking)
+     - Copy the **API Key** shown in the plugin settings
+   - Run the **"Configure API Key"** GitHub workflow with the copied key
 
-    subgraph "External"
-        GH["GitHub OAuth"]
-        LE["Let's Encrypt"]
-        SYNC["Obsidian Sync"]
-    end
-
-    W --> GH
-    C --> LE
-    O --> SYNC
-    M -.->|"Token Introspection"| W
-```
-
-## Important Limitation
-
-> **Obsidian Sync requires a one-time manual login via Web GUI.** There is no headless CLI authentication for Obsidian Sync.
-
-- Infrastructure deployment = fully automated ✅
-- HTTPS + OAuth = fully automated ✅
-- **First Obsidian Sync login = MANUAL via browser** ⚠️
-
-After the initial login, Sync runs automatically.
+After both steps are done, Sync and the MCP server run automatically.
 
 ## Prerequisites
 
@@ -174,7 +180,6 @@ The Cloudflare Worker acts as OAuth provider for Claude.ai.
    npx wrangler secret put GITHUB_CLIENT_ID
    npx wrangler secret put GITHUB_CLIENT_SECRET
    npx wrangler secret put COOKIE_ENCRYPTION_KEY  # openssl rand -base64 32
-   npx wrangler secret put MCP_PROXY_SECRET       # (legacy, can be any value)
 
    # Deploy
    npx wrangler deploy
@@ -216,9 +221,13 @@ Add these secrets to your forked repository:
    - Username: `admin`
    - Password: Your `VNC_PASSWORD`
 3. **Log in to Obsidian Sync** in the GUI
-4. **Install "Local REST API" plugin:**
-   - Enable "Bind to all network interfaces"
-   - Copy the API key
+4. **Install and configure the "Local REST API" plugin:**
+   - Go to **Settings → Community plugins → Browse**
+   - Search for **"Local REST API"** and install it
+   - Enable the plugin
+   - Go to **Settings → Local REST API**:
+     - Enable **"Bind to all network interfaces"**
+     - Copy the **API Key**
 5. **Run "Configure API Key" workflow** with the copied key
 
 ### Step 6: Configure Claude.ai
@@ -260,9 +269,9 @@ const ALLOWED_EMAILS = new Set<string>(["your-email@example.com"]);
 |-----------|---------|-------|
 | **Caddy** | Reverse proxy, auto HTTPS | 80, 443 (public) |
 | **MCP Server** | Obsidian MCP with Token Introspection | 3000 (internal) |
-| **Obsidian** | Vault with Sync + REST API | 27123 (internal), 3001 (GUI) |
+| **Obsidian** | Vault with Sync + Local REST API | 27123 (internal), 3001 (GUI) |
 
-The MCP server is a [fork of cyanheads/obsidian-mcp-server](https://github.com/benpeter/obsidian-mcp-server) with added [RFC 7662 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662) support.
+The MCP server uses [cyanheads/obsidian-mcp-server](https://github.com/cyanheads/obsidian-mcp-server) with [RFC 7662 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662) support.
 
 ### Cloudflare Worker
 
@@ -395,12 +404,11 @@ obsidian-cloud-mcp/
 │   ├── Caddyfile
 │   └── .env.example
 ├── mcp-server/                # MCP server Dockerfile
-│   └── Dockerfile             # Builds from benpeter/obsidian-mcp-server fork
+│   └── Dockerfile
 ├── scripts/
 │   ├── cloud-init.yml         # Server provisioning
 │   ├── setup-mcp.sh           # Manual setup alternative
-│   ├── health-check.sh        # Health monitoring
-│   └── generate-jwt.sh        # JWT generation (legacy)
+│   └── health-check.sh        # Health monitoring
 ├── .github/workflows/
 │   ├── deploy.yml             # Deploy Hetzner infrastructure
 │   ├── configure-api-key.yml  # Set Obsidian API key
@@ -409,12 +417,6 @@ obsidian-cloud-mcp/
 │   └── destroy.yml            # Destroy infrastructure
 └── terraform/                 # Hetzner IaC
 ```
-
-## Related Repositories
-
-- **[benpeter/obsidian-mcp-server](https://github.com/benpeter/obsidian-mcp-server)** — Fork of cyanheads/obsidian-mcp-server with RFC 7662 Token Introspection support
-- **[cyanheads/obsidian-mcp-server](https://github.com/cyanheads/obsidian-mcp-server)** — Upstream MCP server for Obsidian
-- **[cloudflare/workers-oauth-provider](https://github.com/cloudflare/workers-oauth-provider)** — OAuth 2.1 provider library for Cloudflare Workers
 
 ## License
 

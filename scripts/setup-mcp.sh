@@ -65,7 +65,7 @@ echo -e "${GREEN}║                    INSTALLATION COMPLETE                   
 echo -e "${GREEN}╠════════════════════════════════════════════════════════════════╣${NC}"
 echo -e "${GREEN}║                                                                ║${NC}"
 echo -e "${GREEN}║  Obsidian GUI:  https://YOUR_SERVER_IP:3001                    ║${NC}"
-echo -e "${GREEN}║  MCP Endpoint:  http://YOUR_SERVER_IP:3002                     ║${NC}"
+echo -e "${GREEN}║  MCP Endpoint:  https://YOUR_DOMAIN/mcp (via Caddy)           ║${NC}"
 echo -e "${GREEN}║                                                                ║${NC}"
 echo -e "${GREEN}║  Next Steps:                                                   ║${NC}"
 echo -e "${GREEN}║  1. Open the GUI URL in your browser                           ║${NC}"

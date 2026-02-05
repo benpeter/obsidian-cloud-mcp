@@ -15,6 +15,9 @@ on:
         required: false
         type: string
 
+env:
+  TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+
 jobs:
   toggle-gui:
     runs-on: ubuntu-latest
@@ -23,21 +26,46 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Terraform
+        if: inputs.server_ip == ''
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Download Terraform State
+        if: inputs.server_ip == ''
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state
+          path: terraform/
+        continue-on-error: true
+
+      - name: Terraform Init
+        if: inputs.server_ip == ''
+        working-directory: terraform
+        run: terraform init
+
+      - name: Get Server IP
+        id: server
+        working-directory: terraform
+        run: |
+          if [ -n "${{ inputs.server_ip }}" ]; then
+            echo "ip=${{ inputs.server_ip }}" >> $GITHUB_OUTPUT
+          else
+            IPV4=$(terraform output -raw server_ipv4 2>/dev/null || echo '')
+            if [ -n "$IPV4" ] && [ "$IPV4" != "IPv4 disabled" ]; then
+              echo "ip=$IPV4" >> $GITHUB_OUTPUT
+            else
+              echo "ip=$(terraform output -raw server_ipv6 2>/dev/null)" >> $GITHUB_OUTPUT
+            fi
+          fi
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ inputs.server_ip || '188.245.154.124' }} >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      - name: Get Server IP
-        id: server
-        run: |
-          if [ -n "${{ inputs.server_ip }}" ]; then
-            echo "ip=${{ inputs.server_ip }}" >> $GITHUB_OUTPUT
-          else
-            echo "ip=188.245.154.124" >> $GITHUB_OUTPUT
-          fi
+          ssh-keyscan -H ${{ steps.server.outputs.ip }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Disable GUI Access
         if: inputs.action == 'disable'
@@ -110,14 +138,14 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ inputs.action }}" == "disable" ]; then
             echo "### Status" >> $GITHUB_STEP_SUMMARY
-            echo "- ❌ Port 3001 (HTTPS GUI): **Blocked** (via DOCKER-USER chain)" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ MCP Server: **Still accessible** via Caddy (443)" >> $GITHUB_STEP_SUMMARY
+            echo "- Port 3001 (HTTPS GUI): **Blocked** (via DOCKER-USER chain)" >> $GITHUB_STEP_SUMMARY
+            echo "- MCP Server: **Still accessible** via Caddy (443)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Run this workflow with 'enable' to restore GUI access." >> $GITHUB_STEP_SUMMARY
           else
             echo "### Status" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Port 3001 (HTTPS GUI): **Open**" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ MCP Server: **Open** via Caddy (443)" >> $GITHUB_STEP_SUMMARY
+            echo "- Port 3001 (HTTPS GUI): **Open**" >> $GITHUB_STEP_SUMMARY
+            echo "- MCP Server: **Open** via Caddy (443)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Access" >> $GITHUB_STEP_SUMMARY
             echo "- URL: \`https://${{ steps.server.outputs.ip }}:3001\`" >> $GITHUB_STEP_SUMMARY

@@ -85,7 +85,7 @@ resource "hcloud_firewall" "obsidian" {
   }
 
   # Note: Port 27123 (Obsidian REST API) intentionally NOT exposed
-  # Note: Port 3002 removed - MCP now accessible via Caddy on 443
+  # MCP is accessible via Caddy on port 443
 }
 
 # Server

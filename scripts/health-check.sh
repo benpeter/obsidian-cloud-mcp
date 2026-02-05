@@ -46,12 +46,20 @@ else
     echo -e "${YELLOW}Not Accessible (may still be starting)${NC}"
 fi
 
-# Check MCP Server
-echo -n "MCP Server (3002): "
-if curl -s --connect-timeout 5 http://localhost:3002/health > /dev/null 2>&1; then
-    echo -e "${GREEN}Accessible${NC}"
+# Check MCP Server (internal port 3000, exposed via Caddy on 443)
+echo -n "MCP Server (3000): "
+if docker ps --format '{{.Names}}' | grep -q '^obsidian-mcp$'; then
+    echo -e "${GREEN}Running${NC}"
 else
-    echo -e "${YELLOW}Not Accessible (check API key configuration)${NC}"
+    echo -e "${RED}Not Running${NC}"
+fi
+
+# Check Caddy
+echo -n "Caddy Reverse Proxy: "
+if docker ps --format '{{.Names}}' | grep -q '^caddy$'; then
+    echo -e "${GREEN}Running${NC}"
+else
+    echo -e "${RED}Not Running${NC}"
 fi
 
 # Check REST API

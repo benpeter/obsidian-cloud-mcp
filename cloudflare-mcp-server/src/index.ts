@@ -2,14 +2,7 @@ import OAuthProvider from "@cloudflare/workers-oauth-provider";
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { GitHubHandler } from "./github-handler";
-
-// Props passed from OAuth callback (user info)
-type Props = {
-	login: string;
-	name: string;
-	email: string;
-	accessToken: string;
-};
+import type { Props } from "./utils";
 
 /**
  * MCP Proxy Server
@@ -25,10 +18,6 @@ export class ObsidianMcpProxy extends McpAgent<Env, {}, Props> {
 	});
 
 	async init() {
-		// Register a single "proxy" tool that forwards requests to Hetzner
-		// This is a workaround - the actual proxying happens at HTTP level
-		// but we need at least one tool for the MCP handshake to work
-
 		this.server.tool(
 			"ping",
 			"Test connectivity to the Obsidian MCP server",
@@ -41,7 +30,6 @@ export class ObsidianMcpProxy extends McpAgent<Env, {}, Props> {
 							method: "POST",
 							headers: {
 								"Content-Type": "application/json",
-								"X-Proxy-Secret": this.env.MCP_PROXY_SECRET,
 							},
 							body: JSON.stringify({
 								jsonrpc: "2.0",

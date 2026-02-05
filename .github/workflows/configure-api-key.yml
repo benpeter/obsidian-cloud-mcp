@@ -10,8 +10,6 @@ on:
 
 env:
   TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
-  TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
-  TF_VAR_vnc_password: ${{ secrets.VNC_PASSWORD }}
 
 jobs:
   configure:
@@ -92,37 +90,14 @@ jobs:
             SERVER_IP="[${{ steps.server.outputs.ipv6 }}]"
           fi
 
-          echo "Testing MCP endpoint at http://$SERVER_IP:3002/mcp ..."
-
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            "http://$SERVER_IP:3002/mcp" \
-            -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","method":"initialize","id":1}' \
-            --connect-timeout 10) || true
-
-          if [ "$RESPONSE" = "200" ]; then
-            echo "MCP server is responding!"
-          else
-            echo "MCP server returned HTTP $RESPONSE (this may be normal for session-based MCP)"
-          fi
+          # Test internal MCP server via SSH (port 3000 is internal only, exposed via Caddy on 443)
+          echo "Checking MCP server container status..."
+          ssh root@$SERVER_IP "docker ps --filter name=obsidian-mcp --format '{{.Status}}'"
 
       - name: Configuration Summary
         run: |
-          if [ -n "${{ steps.server.outputs.ipv4 }}" ] && [ "${{ steps.server.outputs.ipv4 }}" != "IPv4 disabled" ]; then
-            SERVER_IP="${{ steps.server.outputs.ipv4 }}"
-            MCP_URL="http://$SERVER_IP:3002/mcp"
-          else
-            SERVER_IP="${{ steps.server.outputs.ipv6 }}"
-            MCP_URL="http://[$SERVER_IP]:3002/mcp"
-          fi
-
           echo "## API Key Configured" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The Obsidian REST API key has been configured on the server." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### MCP Endpoint" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "$MCP_URL" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "You can now use this endpoint in your Claude MCP configuration." >> $GITHUB_STEP_SUMMARY
+          echo "The MCP server is accessible via HTTPS through Caddy on your configured domain." >> $GITHUB_STEP_SUMMARY

@@ -4,7 +4,3 @@ GITHUB_CLIENT_SECRET=<your github client secret>
 
 # Cookie encryption key (generate with: openssl rand -base64 32)
 COOKIE_ENCRYPTION_KEY=<random 32 byte base64 string>
-
-# Shared secret for Hetzner MCP server authentication
-# Must match the MCP_PROXY_SECRET in the Hetzner server's .env
-MCP_PROXY_SECRET=<shared secret with hetzner server>

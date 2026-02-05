@@ -3,6 +3,11 @@ name: Update Docker Images
 on:
   workflow_dispatch:
 
+env:
+  TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+  TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+  TF_VAR_vnc_password: ${{ secrets.VNC_PASSWORD }}
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -21,15 +26,7 @@ jobs:
         with:
           name: terraform-state
           path: terraform/
-
-      - name: Create tfvars file
-        working-directory: terraform
-        run: |
-          cat > terraform.tfvars << EOF
-          hcloud_token     = "${{ secrets.HCLOUD_TOKEN }}"
-          ssh_public_key   = "${{ secrets.SSH_PUBLIC_KEY }}"
-          vnc_password     = "${{ secrets.VNC_PASSWORD }}"
-          EOF
+        continue-on-error: true
 
       - name: Terraform Init
         working-directory: terraform
@@ -37,20 +34,32 @@ jobs:
 
       - name: Get Server IP
         working-directory: terraform
-        id: ip
+        id: server
         run: |
-          echo "server_ip=$(terraform output -raw server_ip)" >> $GITHUB_OUTPUT
+          echo "ipv4=$(terraform output -raw server_ipv4 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+          echo "ipv6=$(terraform output -raw server_ipv6 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
 
       - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ steps.ip.outputs.server_ip }} >> ~/.ssh/known_hosts
+
+          # Add server to known hosts
+          if [ -n "${{ steps.server.outputs.ipv4 }}" ] && [ "${{ steps.server.outputs.ipv4 }}" != "IPv4 disabled" ]; then
+            ssh-keyscan -H ${{ steps.server.outputs.ipv4 }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          fi
 
       - name: Update Docker Images
         run: |
-          ssh root@${{ steps.ip.outputs.server_ip }} << 'ENDSSH'
+          # Determine which IP to use
+          if [ -n "${{ steps.server.outputs.ipv4 }}" ] && [ "${{ steps.server.outputs.ipv4 }}" != "IPv4 disabled" ]; then
+            SERVER_IP="${{ steps.server.outputs.ipv4 }}"
+          else
+            SERVER_IP="${{ steps.server.outputs.ipv6 }}"
+          fi
+
+          ssh root@$SERVER_IP << 'ENDSSH'
           cd /opt/obsidian-mcp
 
           echo "Pulling latest images..."
@@ -71,6 +80,11 @@ jobs:
 
       - name: Update Summary
         run: |
+          if [ -n "${{ steps.server.outputs.ipv4 }}" ] && [ "${{ steps.server.outputs.ipv4 }}" != "IPv4 disabled" ]; then
+            SERVER_IP="${{ steps.server.outputs.ipv4 }}"
+          else
+            SERVER_IP="${{ steps.server.outputs.ipv6 }}"
+          fi
           echo "## Docker Images Updated" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Successfully updated Docker images on server \`${{ steps.ip.outputs.server_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Successfully updated Docker images on server \`$SERVER_IP\`" >> $GITHUB_STEP_SUMMARY
