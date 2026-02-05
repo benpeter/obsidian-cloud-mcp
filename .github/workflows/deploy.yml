@@ -26,6 +26,11 @@ on:
         default: true
         type: boolean
 
+env:
+  TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+  TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+  TF_VAR_vnc_password: ${{ secrets.VNC_PASSWORD }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -39,25 +44,18 @@ jobs:
         with:
           terraform_version: 1.6.0
 
-      - name: Create tfvars file
-        working-directory: terraform
-        run: |
-          cat > terraform.tfvars << EOF
-          hcloud_token     = "${{ secrets.HCLOUD_TOKEN }}"
-          ssh_public_key   = "${{ secrets.SSH_PUBLIC_KEY }}"
-          vnc_password     = "${{ secrets.VNC_PASSWORD }}"
-          server_type      = "${{ inputs.server_type }}"
-          server_location  = "${{ inputs.server_location }}"
-          enable_ipv4      = ${{ inputs.enable_ipv4 }}
-          EOF
-
       - name: Terraform Init
         working-directory: terraform
         run: terraform init
 
       - name: Terraform Plan
         working-directory: terraform
-        run: terraform plan -out=tfplan
+        run: |
+          terraform plan \
+            -var="server_type=${{ inputs.server_type }}" \
+            -var="server_location=${{ inputs.server_location }}" \
+            -var="enable_ipv4=${{ inputs.enable_ipv4 }}" \
+            -out=tfplan
 
       - name: Terraform Apply
         working-directory: terraform
