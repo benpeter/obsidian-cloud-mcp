@@ -1,0 +1,76 @@
+name: Update Docker Images
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Download Terraform State
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state
+          path: terraform/
+
+      - name: Create tfvars file
+        working-directory: terraform
+        run: |
+          cat > terraform.tfvars << EOF
+          hcloud_token     = "${{ secrets.HCLOUD_TOKEN }}"
+          ssh_public_key   = "${{ secrets.SSH_PUBLIC_KEY }}"
+          vnc_password     = "${{ secrets.VNC_PASSWORD }}"
+          EOF
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Get Server IP
+        working-directory: terraform
+        id: ip
+        run: |
+          echo "server_ip=$(terraform output -raw server_ip)" >> $GITHUB_OUTPUT
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ steps.ip.outputs.server_ip }} >> ~/.ssh/known_hosts
+
+      - name: Update Docker Images
+        run: |
+          ssh root@${{ steps.ip.outputs.server_ip }} << 'ENDSSH'
+          cd /opt/obsidian-mcp
+
+          echo "Pulling latest images..."
+          docker compose pull
+
+          echo "Rebuilding MCP server..."
+          docker compose build --no-cache mcp-server
+
+          echo "Restarting containers..."
+          docker compose up -d
+
+          echo "Cleaning up old images..."
+          docker image prune -f
+
+          echo "Done!"
+          docker ps
+          ENDSSH
+
+      - name: Update Summary
+        run: |
+          echo "## Docker Images Updated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Successfully updated Docker images on server \`${{ steps.ip.outputs.server_ip }}\`" >> $GITHUB_STEP_SUMMARY

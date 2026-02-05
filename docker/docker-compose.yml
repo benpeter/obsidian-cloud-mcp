@@ -1,0 +1,50 @@
+services:
+  obsidian:
+    image: lscr.io/linuxserver/obsidian:latest
+    container_name: obsidian
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Berlin
+    volumes:
+      - ./config:/config
+      - ./vault:/config/obsidian-vault
+    ports:
+      - "3000:3000"    # HTTP Web GUI
+      - "3001:3001"    # HTTPS Web GUI (primary access)
+      - "27123:27123"  # Obsidian Local REST API Plugin
+    shm_size: "1gb"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  mcp-server:
+    build:
+      context: ../mcp-server
+      dockerfile: Dockerfile
+    container_name: obsidian-mcp
+    environment:
+      - OBSIDIAN_REST_URL=http://obsidian:27123
+      - OBSIDIAN_API_KEY=${OBSIDIAN_API_KEY:-not_configured}
+      - PORT=3000
+    ports:
+      - "3002:3000"
+    depends_on:
+      obsidian:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  default:
+    name: obsidian-network

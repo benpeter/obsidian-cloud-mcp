@@ -1,0 +1,93 @@
+name: Deploy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_type:
+        description: 'Server type (cx22 = 2vCPU/4GB, cx32 = 4vCPU/8GB)'
+        required: false
+        default: 'cx22'
+        type: choice
+        options:
+          - cx22
+          - cx32
+      server_location:
+        description: 'Server location'
+        required: false
+        default: 'nbg1'
+        type: choice
+        options:
+          - nbg1  # Nuremberg
+          - fsn1  # Falkenstein
+          - hel1  # Helsinki
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Create tfvars file
+        working-directory: terraform
+        run: |
+          cat > terraform.tfvars << EOF
+          hcloud_token     = "${{ secrets.HCLOUD_TOKEN }}"
+          ssh_public_key   = "${{ secrets.SSH_PUBLIC_KEY }}"
+          vnc_password     = "${{ secrets.VNC_PASSWORD }}"
+          server_type      = "${{ inputs.server_type }}"
+          server_location  = "${{ inputs.server_location }}"
+          EOF
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Outputs
+        working-directory: terraform
+        id: outputs
+        run: |
+          echo "server_ip=$(terraform output -raw server_ip)" >> $GITHUB_OUTPUT
+          echo "vnc_url=$(terraform output -raw vnc_url)" >> $GITHUB_OUTPUT
+          echo "mcp_endpoint=$(terraform output -raw mcp_endpoint)" >> $GITHUB_OUTPUT
+
+      - name: Deployment Summary
+        run: |
+          echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Server Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **IP Address:** \`${{ steps.outputs.outputs.server_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **VNC URL:** ${{ steps.outputs.outputs.vnc_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **MCP Endpoint:** ${{ steps.outputs.outputs.mcp_endpoint }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Wait 2-3 minutes for Docker containers to start" >> $GITHUB_STEP_SUMMARY
+          echo "2. Open the VNC URL in your browser" >> $GITHUB_STEP_SUMMARY
+          echo "3. Log in to Obsidian Sync manually" >> $GITHUB_STEP_SUMMARY
+          echo "4. Install and configure the 'Local REST API' plugin" >> $GITHUB_STEP_SUMMARY
+          echo "5. SSH to server and add API key to \`/opt/obsidian-mcp/.env\`" >> $GITHUB_STEP_SUMMARY
+          echo "6. Restart: \`docker compose restart mcp-server\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Save Terraform State
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-state
+          path: |
+            terraform/terraform.tfstate
+            terraform/terraform.tfstate.backup
+          retention-days: 90

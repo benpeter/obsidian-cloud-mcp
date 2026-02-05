@@ -1,0 +1,66 @@
+name: Destroy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "DESTROY" to confirm infrastructure destruction'
+        required: true
+        type: string
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'DESTROY'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Download Terraform State
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state
+          path: terraform/
+        continue-on-error: true
+
+      - name: Create tfvars file
+        working-directory: terraform
+        run: |
+          cat > terraform.tfvars << EOF
+          hcloud_token     = "${{ secrets.HCLOUD_TOKEN }}"
+          ssh_public_key   = "${{ secrets.SSH_PUBLIC_KEY }}"
+          vnc_password     = "${{ secrets.VNC_PASSWORD }}"
+          EOF
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Destroy
+        working-directory: terraform
+        run: terraform destroy -auto-approve
+
+      - name: Destruction Summary
+        run: |
+          echo "## Infrastructure Destroyed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All Hetzner Cloud resources have been removed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Any data stored on the server has been permanently deleted." >> $GITHUB_STEP_SUMMARY
+
+  reject:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm != 'DESTROY'
+    steps:
+      - name: Confirmation Failed
+        run: |
+          echo "## Destruction Cancelled" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "You must type 'DESTROY' exactly to confirm infrastructure destruction." >> $GITHUB_STEP_SUMMARY
+          exit 1

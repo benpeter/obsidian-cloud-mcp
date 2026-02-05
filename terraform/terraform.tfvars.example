@@ -1,0 +1,19 @@
+# Hetzner Cloud API Token (required)
+hcloud_token = "your_hcloud_token_here"
+
+# SSH public key for server access (required)
+# Example: ssh_public_key = "ssh-rsa AAAAB3... user@host"
+ssh_public_key = "ssh-rsa YOUR_PUBLIC_KEY_HERE"
+
+# VNC password for Obsidian GUI access (required, min 6 chars)
+vnc_password = "your_secure_vnc_password"
+
+# Server configuration (optional, defaults shown)
+# server_name     = "obsidian-mcp"
+# server_type     = "cx22"          # 2 vCPU, 4GB RAM (~4 EUR/month)
+# server_location = "nbg1"          # Nuremberg, Germany
+# server_image    = "ubuntu-24.04"
+
+# IP restriction (optional)
+# Restrict access to specific IPs for security
+# firewall_allowed_ips = ["YOUR.IP.ADDRESS.HERE/32"]

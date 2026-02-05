@@ -1,0 +1,69 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - docker.io
+  - docker-compose-v2
+  - curl
+  - git
+  - jq
+
+write_files:
+  - path: /opt/obsidian-mcp/.env
+    permissions: '0600'
+    content: |
+      # Obsidian REST API Key - configure after manual setup
+      OBSIDIAN_API_KEY=not_configured_yet
+
+  - path: /opt/obsidian-mcp/setup-complete.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      echo "=========================================="
+      echo "Obsidian MCP Server - Setup Complete"
+      echo "=========================================="
+      echo ""
+      echo "Server is running. Next steps:"
+      echo ""
+      echo "1. Access Obsidian GUI:"
+      echo "   https://$(curl -s ifconfig.me):3001"
+      echo ""
+      echo "2. Login to Obsidian Sync"
+      echo ""
+      echo "3. Install 'Local REST API' plugin"
+      echo ""
+      echo "4. Copy API key to /opt/obsidian-mcp/.env"
+      echo ""
+      echo "5. Restart: cd /opt/obsidian-mcp && docker compose restart"
+      echo ""
+      echo "=========================================="
+
+runcmd:
+  # Enable and start Docker
+  - systemctl enable docker
+  - systemctl start docker
+
+  # Create directory structure
+  - mkdir -p /opt/obsidian-mcp
+
+  # Clone repository files
+  - git clone --depth 1 https://github.com/benpeter/obsidian-cloud-mcp.git /tmp/obsidian-setup
+  - cp -r /tmp/obsidian-setup/docker/* /opt/obsidian-mcp/
+  - cp -r /tmp/obsidian-setup/mcp-server /opt/obsidian-mcp/
+  - rm -rf /tmp/obsidian-setup
+
+  # Create data directories
+  - mkdir -p /opt/obsidian-mcp/config
+  - mkdir -p /opt/obsidian-mcp/vault
+
+  # Start containers
+  - cd /opt/obsidian-mcp && docker compose up -d --build
+
+  # Show completion message
+  - /opt/obsidian-mcp/setup-complete.sh
+
+final_message: |
+  Obsidian MCP Server deployment complete!
+  Access the GUI at https://$PUBLIC_IP:3001
