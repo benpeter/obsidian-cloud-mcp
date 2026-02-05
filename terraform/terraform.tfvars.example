@@ -10,7 +10,7 @@ vnc_password = "your_secure_vnc_password"
 
 # Server configuration (optional, defaults shown)
 # server_name     = "obsidian-mcp"
-# server_type     = "cx22"          # 2 vCPU, 4GB RAM (~4 EUR/month)
+# server_type     = "cx23"          # 2 vCPU, 4GB RAM (~3.56 EUR/month)
 # server_location = "nbg1"          # Nuremberg, Germany
 # server_image    = "ubuntu-24.04"
 

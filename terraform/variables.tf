@@ -11,9 +11,9 @@ variable "server_name" {
 }
 
 variable "server_type" {
-  description = "Hetzner server type (cx22 = 2 vCPU, 4GB RAM, ~€4/month)"
+  description = "Hetzner server type (cx23 = 2 vCPU, 4GB RAM, ~€3.56/month)"
   type        = string
-  default     = "cx22"
+  default     = "cx23"
 }
 
 variable "server_location" {

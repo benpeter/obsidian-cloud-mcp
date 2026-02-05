@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       server_type:
-        description: 'Server type (cx22 = 2vCPU/4GB, cx32 = 4vCPU/8GB)'
+        description: 'Server type (cx23 = 2vCPU/4GB, cx33 = 4vCPU/8GB)'
         required: false
-        default: 'cx22'
+        default: 'cx23'
         type: choice
         options:
-          - cx22
-          - cx32
+          - cx23
+          - cx33
       server_location:
         description: 'Server location'
         required: false
