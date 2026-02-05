@@ -45,10 +45,12 @@ jobs:
           terraform_version: 1.6.0
 
       - name: Terraform Init
+        id: init
         working-directory: terraform
         run: terraform init
 
       - name: Terraform Plan
+        id: plan
         working-directory: terraform
         run: |
           terraform plan \
@@ -58,6 +60,7 @@ jobs:
             -out=tfplan
 
       - name: Terraform Apply
+        id: apply
         working-directory: terraform
         run: terraform apply -auto-approve tfplan
 
@@ -100,3 +103,21 @@ jobs:
             terraform/terraform.tfstate.backup
           retention-days: 90
           if-no-files-found: warn
+
+      # Cleanup on failure - destroy any partially created resources
+      - name: Cleanup on Failure
+        if: failure() && steps.init.outcome == 'success'
+        working-directory: terraform
+        run: |
+          echo "## ⚠️ Deployment Failed - Cleaning Up" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Destroying partially created resources..." >> $GITHUB_STEP_SUMMARY
+
+          terraform destroy -auto-approve \
+            -var="server_type=${{ inputs.server_type }}" \
+            -var="server_location=${{ inputs.server_location }}" \
+            -var="enable_ipv4=${{ inputs.enable_ipv4 }}" \
+            || echo "Cleanup completed (some resources may not have existed)"
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Cleanup complete. Fix the error and re-run the workflow." >> $GITHUB_STEP_SUMMARY
