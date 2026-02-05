@@ -39,7 +39,8 @@ EXPIRY=$((NOW + EXPIRY_HOURS * 3600))
 HEADER=$(echo -n '{"alg":"HS256","typ":"JWT"}' | openssl base64 -e | tr -d '=' | tr '/+' '_-' | tr -d '\n')
 
 # Create JWT payload
-PAYLOAD=$(echo -n "{\"sub\":\"mcp-client\",\"iat\":$NOW,\"exp\":$EXPIRY}" | openssl base64 -e | tr -d '=' | tr '/+' '_-' | tr -d '\n')
+# MCP server requires: client_id (or cid) and scope (or scp)
+PAYLOAD=$(echo -n "{\"client_id\":\"mcp-client\",\"scope\":\"obsidian:read obsidian:write\",\"iat\":$NOW,\"exp\":$EXPIRY}" | openssl base64 -e | tr -d '=' | tr '/+' '_-' | tr -d '\n')
 
 # Create signature
 SIGNATURE=$(echo -n "$HEADER.$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" -binary | openssl base64 -e | tr -d '=' | tr '/+' '_-' | tr -d '\n')
