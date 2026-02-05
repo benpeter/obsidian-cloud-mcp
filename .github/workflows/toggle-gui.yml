@@ -36,7 +36,6 @@ jobs:
           if [ -n "${{ inputs.server_ip }}" ]; then
             echo "ip=${{ inputs.server_ip }}" >> $GITHUB_OUTPUT
           else
-            # Try to get from Terraform state artifact
             echo "ip=188.245.154.124" >> $GITHUB_OUTPUT
           fi
 
@@ -46,16 +45,29 @@ jobs:
           ssh -o StrictHostKeyChecking=no root@${{ steps.server.outputs.ip }} << 'EOF'
           echo "Blocking Web GUI port 3001..."
 
-          # Block incoming traffic to port 3001 (HTTPS GUI)
-          iptables -I INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
-          ip6tables -I INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
+          # Docker publishes ports via NAT/FORWARD, not INPUT.
+          # The DOCKER-USER chain is the correct place to block traffic
+          # to Docker-published ports (see Docker docs on iptables).
+
+          # Clean up any stale INPUT rules from previous runs
+          iptables -D INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
+          iptables -D INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
+          ip6tables -D INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
+          ip6tables -D INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
+
+          # Block via DOCKER-USER chain (idempotent: remove first, then add)
+          iptables -D DOCKER-USER -p tcp --dport 3001 -j DROP 2>/dev/null || true
+          iptables -I DOCKER-USER -p tcp --dport 3001 -j DROP
+
+          ip6tables -D DOCKER-USER -p tcp --dport 3001 -j DROP 2>/dev/null || true
+          ip6tables -I DOCKER-USER -p tcp --dport 3001 -j DROP 2>/dev/null || true
 
           # Save rules to persist across reboots
           if command -v netfilter-persistent &> /dev/null; then
             netfilter-persistent save
           fi
 
-          echo "GUI access disabled. MCP server on port 3002 still accessible."
+          echo "GUI access disabled via DOCKER-USER chain."
           EOF
 
       - name: Enable GUI Access
@@ -64,7 +76,11 @@ jobs:
           ssh -o StrictHostKeyChecking=no root@${{ steps.server.outputs.ip }} << 'EOF'
           echo "Unblocking Web GUI port 3001..."
 
-          # Remove DROP rules for port 3001
+          # Remove DOCKER-USER DROP rules
+          iptables -D DOCKER-USER -p tcp --dport 3001 -j DROP 2>/dev/null || true
+          ip6tables -D DOCKER-USER -p tcp --dport 3001 -j DROP 2>/dev/null || true
+
+          # Also clean up any stale INPUT rules
           iptables -D INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
           ip6tables -D INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
 
@@ -81,8 +97,8 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no root@${{ steps.server.outputs.ip }} << 'EOF'
           echo ""
-          echo "=== Current iptables rules for GUI port ==="
-          iptables -L INPUT -n | grep "3001" || echo "No DROP rule for 3001 (GUI accessible)"
+          echo "=== DOCKER-USER chain (controls Docker port access) ==="
+          iptables -L DOCKER-USER -n | grep "3001" || echo "No DROP rule for 3001 (GUI accessible)"
           echo ""
           echo "=== Container status ==="
           docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "(NAMES|obsidian)"
@@ -94,16 +110,14 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ inputs.action }}" == "disable" ]; then
             echo "### Status" >> $GITHUB_STEP_SUMMARY
-            echo "- ❌ Port 3001 (HTTPS GUI): **Blocked**" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Port 3002 (MCP Server): **Still accessible**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "The Obsidian container is still running. MCP access works normally." >> $GITHUB_STEP_SUMMARY
+            echo "- ❌ Port 3001 (HTTPS GUI): **Blocked** (via DOCKER-USER chain)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ MCP Server: **Still accessible** via Caddy (443)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Run this workflow with 'enable' to restore GUI access." >> $GITHUB_STEP_SUMMARY
           else
             echo "### Status" >> $GITHUB_STEP_SUMMARY
             echo "- ✅ Port 3001 (HTTPS GUI): **Open**" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Port 3002 (MCP Server): **Open**" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ MCP Server: **Open** via Caddy (443)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Access" >> $GITHUB_STEP_SUMMARY
             echo "- URL: \`https://${{ steps.server.outputs.ip }}:3001\`" >> $GITHUB_STEP_SUMMARY
