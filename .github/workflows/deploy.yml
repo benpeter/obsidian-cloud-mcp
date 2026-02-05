@@ -20,6 +20,11 @@ on:
           - nbg1  # Nuremberg
           - fsn1  # Falkenstein
           - hel1  # Helsinki
+      enable_ipv4:
+        description: 'Enable IPv4 address (+€0.50/month). Disable for IPv6-only.'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   deploy:
@@ -43,6 +48,7 @@ jobs:
           vnc_password     = "${{ secrets.VNC_PASSWORD }}"
           server_type      = "${{ inputs.server_type }}"
           server_location  = "${{ inputs.server_location }}"
+          enable_ipv4      = ${{ inputs.enable_ipv4 }}
           EOF
 
       - name: Terraform Init
@@ -61,16 +67,20 @@ jobs:
         working-directory: terraform
         id: outputs
         run: |
-          echo "server_ip=$(terraform output -raw server_ip)" >> $GITHUB_OUTPUT
+          echo "server_ipv4=$(terraform output -raw server_ipv4)" >> $GITHUB_OUTPUT
+          echo "server_ipv6=$(terraform output -raw server_ipv6)" >> $GITHUB_OUTPUT
           echo "vnc_url=$(terraform output -raw vnc_url)" >> $GITHUB_OUTPUT
           echo "mcp_endpoint=$(terraform output -raw mcp_endpoint)" >> $GITHUB_OUTPUT
+          echo "ip_mode=$(terraform output -raw ip_mode)" >> $GITHUB_OUTPUT
 
       - name: Deployment Summary
         run: |
           echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Server Details" >> $GITHUB_STEP_SUMMARY
-          echo "- **IP Address:** \`${{ steps.outputs.outputs.server_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **IP Mode:** ${{ steps.outputs.outputs.ip_mode }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **IPv4:** \`${{ steps.outputs.outputs.server_ipv4 }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **IPv6:** \`${{ steps.outputs.outputs.server_ipv6 }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **VNC URL:** ${{ steps.outputs.outputs.vnc_url }}" >> $GITHUB_STEP_SUMMARY
           echo "- **MCP Endpoint:** ${{ steps.outputs.outputs.mcp_endpoint }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

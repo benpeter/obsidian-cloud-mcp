@@ -8,44 +8,99 @@ resource "hcloud_ssh_key" "default" {
 resource "hcloud_firewall" "obsidian" {
   name = "${var.server_name}-firewall"
 
-  # SSH
+  # SSH (IPv4)
+  dynamic "rule" {
+    for_each = var.enable_ipv4 ? [1] : []
+    content {
+      direction  = "in"
+      protocol   = "tcp"
+      port       = "22"
+      source_ips = var.firewall_allowed_ips
+    }
+  }
+
+  # SSH (IPv6)
   rule {
     direction  = "in"
     protocol   = "tcp"
     port       = "22"
-    source_ips = var.firewall_allowed_ips
+    source_ips = var.firewall_allowed_ipv6
   }
 
-  # Obsidian Web GUI (HTTP)
+  # Obsidian Web GUI HTTP (IPv4)
+  dynamic "rule" {
+    for_each = var.enable_ipv4 ? [1] : []
+    content {
+      direction  = "in"
+      protocol   = "tcp"
+      port       = "3000"
+      source_ips = var.firewall_allowed_ips
+    }
+  }
+
+  # Obsidian Web GUI HTTP (IPv6)
   rule {
     direction  = "in"
     protocol   = "tcp"
     port       = "3000"
-    source_ips = var.firewall_allowed_ips
+    source_ips = var.firewall_allowed_ipv6
   }
 
-  # Obsidian Web GUI (HTTPS) - Primary VNC access
+  # Obsidian Web GUI HTTPS (IPv4)
+  dynamic "rule" {
+    for_each = var.enable_ipv4 ? [1] : []
+    content {
+      direction  = "in"
+      protocol   = "tcp"
+      port       = "3001"
+      source_ips = var.firewall_allowed_ips
+    }
+  }
+
+  # Obsidian Web GUI HTTPS (IPv6)
   rule {
     direction  = "in"
     protocol   = "tcp"
     port       = "3001"
-    source_ips = var.firewall_allowed_ips
+    source_ips = var.firewall_allowed_ipv6
   }
 
-  # MCP Server
+  # MCP Server (IPv4)
+  dynamic "rule" {
+    for_each = var.enable_ipv4 ? [1] : []
+    content {
+      direction  = "in"
+      protocol   = "tcp"
+      port       = "3002"
+      source_ips = var.firewall_allowed_ips
+    }
+  }
+
+  # MCP Server (IPv6)
   rule {
     direction  = "in"
     protocol   = "tcp"
     port       = "3002"
-    source_ips = var.firewall_allowed_ips
+    source_ips = var.firewall_allowed_ipv6
   }
 
-  # Obsidian REST API (optional, for direct testing)
+  # Obsidian REST API (IPv4)
+  dynamic "rule" {
+    for_each = var.enable_ipv4 ? [1] : []
+    content {
+      direction  = "in"
+      protocol   = "tcp"
+      port       = "27123"
+      source_ips = var.firewall_allowed_ips
+    }
+  }
+
+  # Obsidian REST API (IPv6)
   rule {
     direction  = "in"
     protocol   = "tcp"
     port       = "27123"
-    source_ips = var.firewall_allowed_ips
+    source_ips = var.firewall_allowed_ipv6
   }
 }
 
@@ -59,6 +114,11 @@ resource "hcloud_server" "obsidian" {
   ssh_keys = [hcloud_ssh_key.default.id]
 
   firewall_ids = [hcloud_firewall.obsidian.id]
+
+  public_net {
+    ipv4_enabled = var.enable_ipv4
+    ipv6_enabled = true
+  }
 
   user_data = templatefile("${path.module}/../scripts/cloud-init.yml", {
     vnc_password = var.vnc_password

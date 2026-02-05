@@ -14,6 +14,11 @@ vnc_password = "your_secure_vnc_password"
 # server_location = "nbg1"          # Nuremberg, Germany
 # server_image    = "ubuntu-24.04"
 
+# IPv4 configuration (optional)
+# Set to false for IPv6-only (saves €0.50/month)
+# enable_ipv4 = true
+
 # IP restriction (optional)
 # Restrict access to specific IPs for security
-# firewall_allowed_ips = ["YOUR.IP.ADDRESS.HERE/32"]
+# firewall_allowed_ips  = ["YOUR.IP.ADDRESS.HERE/32"]    # IPv4
+# firewall_allowed_ipv6 = ["YOUR:IPV6:ADDRESS:HERE/128"] # IPv6

@@ -40,7 +40,19 @@ variable "vnc_password" {
 }
 
 variable "firewall_allowed_ips" {
-  description = "List of IP addresses/ranges allowed to access the server (CIDR notation). Use 0.0.0.0/0 for any."
+  description = "List of IPv4 addresses/ranges allowed to access the server (CIDR notation). Use 0.0.0.0/0 for any."
   type        = list(string)
   default     = ["0.0.0.0/0"]
+}
+
+variable "firewall_allowed_ipv6" {
+  description = "List of IPv6 addresses/ranges allowed to access the server (CIDR notation). Use ::/0 for any."
+  type        = list(string)
+  default     = ["::/0"]
+}
+
+variable "enable_ipv4" {
+  description = "Enable IPv4 address (costs +€0.50/month). Set to false for IPv6-only."
+  type        = bool
+  default     = true
 }
