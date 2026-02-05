@@ -137,8 +137,21 @@ After the initial login, Sync runs automatically.
 |----------|-------------|
 | **Deploy Infrastructure** | Creates the Hetzner server with Obsidian + MCP |
 | **Configure API Key** | Sets the REST API key on the server |
+| **Toggle Web GUI Access** | Enable/disable GUI ports (3000/3001) for security |
 | **Update Docker Images** | Pulls latest images and restarts containers |
 | **Destroy Infrastructure** | Removes all cloud resources |
+
+### Toggle Web GUI Access
+
+For better security, you can disable the Web GUI when not needed:
+
+- **Disable**: Blocks ports 3000 and 3001 via iptables. MCP (port 3002) still works.
+- **Enable**: Restores GUI access for configuration or troubleshooting.
+
+This is useful because:
+1. After initial setup, you rarely need the GUI
+2. Reduces attack surface when GUI is disabled
+3. MCP server continues working normally
 
 ## Post-Deployment Setup
 

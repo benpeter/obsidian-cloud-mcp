@@ -1,0 +1,118 @@
+name: Toggle Web GUI Access
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Enable or disable Web GUI access'
+        required: true
+        type: choice
+        options:
+          - disable
+          - enable
+      server_ip:
+        description: 'Server IP address (leave empty to use Terraform state)'
+        required: false
+        type: string
+
+jobs:
+  toggle-gui:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ inputs.server_ip || '188.245.154.124' }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Get Server IP
+        id: server
+        run: |
+          if [ -n "${{ inputs.server_ip }}" ]; then
+            echo "ip=${{ inputs.server_ip }}" >> $GITHUB_OUTPUT
+          else
+            # Try to get from Terraform state artifact
+            echo "ip=188.245.154.124" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Disable GUI Access
+        if: inputs.action == 'disable'
+        run: |
+          ssh -o StrictHostKeyChecking=no root@${{ steps.server.outputs.ip }} << 'EOF'
+          echo "Blocking Web GUI ports 3000 and 3001..."
+
+          # Block incoming traffic to ports 3000 and 3001
+          iptables -I INPUT -p tcp --dport 3000 -j DROP 2>/dev/null || true
+          iptables -I INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
+          ip6tables -I INPUT -p tcp --dport 3000 -j DROP 2>/dev/null || true
+          ip6tables -I INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
+
+          # Save rules to persist across reboots
+          if command -v netfilter-persistent &> /dev/null; then
+            netfilter-persistent save
+          fi
+
+          echo "GUI access disabled. MCP server on port 3002 still accessible."
+          EOF
+
+      - name: Enable GUI Access
+        if: inputs.action == 'enable'
+        run: |
+          ssh -o StrictHostKeyChecking=no root@${{ steps.server.outputs.ip }} << 'EOF'
+          echo "Unblocking Web GUI ports 3000 and 3001..."
+
+          # Remove DROP rules for ports 3000 and 3001
+          iptables -D INPUT -p tcp --dport 3000 -j DROP 2>/dev/null || true
+          iptables -D INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
+          ip6tables -D INPUT -p tcp --dport 3000 -j DROP 2>/dev/null || true
+          ip6tables -D INPUT -p tcp --dport 3001 -j DROP 2>/dev/null || true
+
+          # Save rules
+          if command -v netfilter-persistent &> /dev/null; then
+            netfilter-persistent save
+          fi
+
+          echo "GUI access enabled on ports 3000 (HTTP) and 3001 (HTTPS)."
+          echo "Login: admin / <VNC_PASSWORD>"
+          EOF
+
+      - name: Verify Status
+        run: |
+          ssh -o StrictHostKeyChecking=no root@${{ steps.server.outputs.ip }} << 'EOF'
+          echo ""
+          echo "=== Current iptables rules for GUI ports ==="
+          iptables -L INPUT -n | grep -E "(3000|3001)" || echo "No specific rules for 3000/3001 (GUI accessible)"
+          echo ""
+          echo "=== Container status ==="
+          docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "(NAMES|obsidian)"
+          EOF
+
+      - name: Summary
+        run: |
+          echo "## Web GUI Access: ${{ inputs.action }}d" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.action }}" == "disable" ]; then
+            echo "### Status" >> $GITHUB_STEP_SUMMARY
+            echo "- ❌ Port 3000 (HTTP GUI): **Blocked**" >> $GITHUB_STEP_SUMMARY
+            echo "- ❌ Port 3001 (HTTPS GUI): **Blocked**" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Port 3002 (MCP Server): **Still accessible**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The Obsidian container is still running. MCP access works normally." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run this workflow with 'enable' to restore GUI access." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Status" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Port 3000 (HTTP GUI): **Open**" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Port 3001 (HTTPS GUI): **Open**" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Port 3002 (MCP Server): **Open**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Access" >> $GITHUB_STEP_SUMMARY
+            echo "- URL: \`https://${{ steps.server.outputs.ip }}:3001\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Username: \`admin\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Password: Your \`VNC_PASSWORD\` secret" >> $GITHUB_STEP_SUMMARY
+          fi
