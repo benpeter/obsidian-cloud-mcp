@@ -29,11 +29,6 @@ output "mcp_endpoint" {
   value       = "http://${local.server_ip_url}:3002"
 }
 
-output "obsidian_rest_api" {
-  description = "Obsidian REST API endpoint (internal, for testing)"
-  value       = "http://${local.server_ip_url}:27123"
-}
-
 output "ip_mode" {
   description = "IP configuration mode"
   value       = var.enable_ipv4 ? "IPv4 + IPv6 (Dual Stack)" : "IPv6 Only (saves €0.50/month)"
@@ -56,9 +51,11 @@ output "next_steps" {
     ║                                                                ║
     ║  3. Login to Obsidian Sync manually                            ║
     ║                                                                ║
-    ║  4. Install & configure "Local REST API" plugin                ║
+    ║  4. Install "Local REST API" plugin:                            ║
+    ║     - Enable "Bind to all interfaces" (0.0.0.0)                ║
+    ║     - Copy the API key                                         ║
     ║                                                                ║
-    ║  5. Copy API key to /opt/obsidian-mcp/.env on server           ║
+    ║  5. SSH to server, add API key to /opt/obsidian-mcp/.env       ║
     ║                                                                ║
     ║  6. Restart MCP server: docker compose restart mcp-server      ║
     ║                                                                ║

@@ -84,24 +84,8 @@ resource "hcloud_firewall" "obsidian" {
     source_ips = var.firewall_allowed_ipv6
   }
 
-  # Obsidian REST API (IPv4)
-  dynamic "rule" {
-    for_each = var.enable_ipv4 ? [1] : []
-    content {
-      direction  = "in"
-      protocol   = "tcp"
-      port       = "27123"
-      source_ips = var.firewall_allowed_ips
-    }
-  }
-
-  # Obsidian REST API (IPv6)
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "27123"
-    source_ips = var.firewall_allowed_ipv6
-  }
+  # Note: Port 27123 (Obsidian REST API) intentionally NOT exposed
+  # It's only accessible within the Docker network for security
 }
 
 # Server
