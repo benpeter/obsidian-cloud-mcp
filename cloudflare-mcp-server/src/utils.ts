@@ -68,7 +68,7 @@ export async function fetchUpstreamAuthToken({
 		method: "POST",
 	});
 	if (!resp.ok) {
-		console.log(await resp.text());
+		console.error(`Upstream token exchange failed: ${resp.status}`);
 		return [null, new Response("Failed to fetch access token", { status: 500 })];
 	}
 	const body = await resp.formData();

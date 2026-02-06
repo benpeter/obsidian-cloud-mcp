@@ -240,7 +240,7 @@ app.get("/callback", async (c) => {
 
 	// Check if user's email is in the allowed list (stored in KV)
 	if (!verifiedEmail || !(await isEmailAllowed(c.env.OAUTH_KV, verifiedEmail))) {
-		console.log(`Access denied for email: ${verifiedEmail || "unknown"} (login: ${login})`);
+		console.log(`Access denied for login: ${login}`);
 		return c.html(
 			`<!DOCTYPE html>
 			<html>
@@ -255,7 +255,7 @@ app.get("/callback", async (c) => {
 		);
 	}
 
-	console.log(`Access granted for ${verifiedEmail} (login: ${login})`);
+	console.log(`Access granted for login: ${login}`);
 
 	// Return back to the MCP client a new token
 	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
@@ -330,7 +330,7 @@ app.post("/introspect", async (c) => {
 	const tokenData = await c.env.OAUTH_KV.get(tokenKey, { type: "json" });
 
 	if (!tokenData) {
-		console.log(`Token not found in KV: ${tokenKey}`);
+		console.log("Token not found in KV");
 		return c.json({ active: false }, 200);
 	}
 
@@ -347,7 +347,7 @@ app.post("/introspect", async (c) => {
 
 	// Check if token is expired
 	if (info.expiresAt * 1000 < Date.now()) {
-		console.log(`Token expired: ${tokenKey}`);
+		console.log("Token expired");
 		return c.json({ active: false }, 200);
 	}
 
