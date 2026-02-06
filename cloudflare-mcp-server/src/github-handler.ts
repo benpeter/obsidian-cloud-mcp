@@ -143,8 +143,8 @@ app.post("/authorize", async (c) => {
 		if (error instanceof OAuthError) {
 			return error.toResponse();
 		}
-		// Unexpected non-OAuth error
-		return c.text(`Internal server error: ${error.message}`, 500);
+		// Unexpected non-OAuth error — don't leak details to client
+		return c.text("Internal server error", 500);
 	}
 });
 
