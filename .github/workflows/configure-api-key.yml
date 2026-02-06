@@ -64,11 +64,15 @@ jobs:
 
           echo "Connecting to server at $SERVER_IP..."
 
-          ssh root@$SERVER_IP << 'ENDSSH'
+          ssh root@$SERVER_IP << ENDSSH
           cd /opt/obsidian-mcp
 
-          # Update .env file with API key
-          echo "OBSIDIAN_API_KEY=${{ inputs.api_key }}" > .env
+          # Update only the OBSIDIAN_API_KEY line in .env (preserve all other vars)
+          if grep -q '^OBSIDIAN_API_KEY=' .env 2>/dev/null; then
+            sed -i 's|^OBSIDIAN_API_KEY=.*|OBSIDIAN_API_KEY=${{ inputs.api_key }}|' .env
+          else
+            echo 'OBSIDIAN_API_KEY=${{ inputs.api_key }}' >> .env
+          fi
 
           # Restart MCP server to pick up new key
           docker compose restart mcp-server
