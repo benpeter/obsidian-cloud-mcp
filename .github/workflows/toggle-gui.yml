@@ -32,14 +32,6 @@ jobs:
         with:
           terraform_version: 1.6.0
 
-      - name: Download Terraform State
-        if: inputs.server_ip == ''
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-state
-          path: terraform/
-        continue-on-error: true
-
       - name: Terraform Init
         if: inputs.server_ip == ''
         working-directory: terraform
