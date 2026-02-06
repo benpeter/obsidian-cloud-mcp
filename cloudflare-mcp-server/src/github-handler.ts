@@ -11,6 +11,7 @@ import {
 	isClientApproved,
 	OAuthError,
 	renderApprovalDialog,
+	sanitizeText,
 	validateCSRFToken,
 	validateOAuthState,
 } from "./workers-oauth-utils";
@@ -246,7 +247,7 @@ app.get("/callback", async (c) => {
 			<head><title>Access Denied</title></head>
 			<body style="font-family: system-ui; padding: 2rem; text-align: center;">
 				<h1>🚫 Access Denied</h1>
-				<p>Your GitHub account (${login}) is not authorized to access this MCP server.</p>
+				<p>Your GitHub account (${sanitizeText(login)}) is not authorized to access this MCP server.</p>
 				<p style="color: #666;">Contact the administrator if you believe this is an error.</p>
 			</body>
 			</html>`,
