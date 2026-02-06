@@ -8,6 +8,7 @@ declare namespace Cloudflare {
 	interface Env {
 		OAUTH_KV: KVNamespace;
 		HETZNER_MCP_URL: string;
+		INTROSPECTION_SECRET: string;
 	}
 }
 interface Env extends Cloudflare.Env {}

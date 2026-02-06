@@ -56,3 +56,6 @@ vault/
 # Secrets
 secrets/
 *.secret
+
+# Security report (local only)
+securityreport.md

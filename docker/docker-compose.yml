@@ -60,6 +60,7 @@ services:
       # Token Introspection (RFC 7662) - validates opaque tokens via Cloudflare Worker
       - MCP_AUTH_MODE=introspection
       - TOKEN_INTROSPECTION_URL=${CLOUDFLARE_WORKER_URL}/introspect
+      - TOKEN_INTROSPECTION_SECRET=${INTROSPECTION_SECRET}
     expose:
       - "3000"
     depends_on:

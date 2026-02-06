@@ -295,6 +295,13 @@ app.get("/callback", async (c) => {
  * Tokens are stored in KV with key: token:${userId}:${grantId}:${sha256(token)}
  */
 app.post("/introspect", async (c) => {
+	// RFC 7662 Section 2.1: Require authorization to prevent token scanning attacks
+	const authHeader = c.req.header("Authorization");
+	const expectedSecret = c.env.INTROSPECTION_SECRET;
+	if (!expectedSecret || !authHeader || authHeader !== `Bearer ${expectedSecret}`) {
+		return c.json({ error: "unauthorized" }, 401);
+	}
+
 	const formData = await c.req.formData();
 	const token = formData.get("token")?.toString();
 
