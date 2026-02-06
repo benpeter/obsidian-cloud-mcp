@@ -2,11 +2,6 @@ name: Configure API Key
 
 on:
   workflow_dispatch:
-    inputs:
-      api_key:
-        description: 'Obsidian REST API Key (from Local REST API plugin)'
-        required: true
-        type: string
 
 env:
   TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
@@ -69,9 +64,9 @@ jobs:
 
           # Update only the OBSIDIAN_API_KEY line in .env (preserve all other vars)
           if grep -q '^OBSIDIAN_API_KEY=' .env 2>/dev/null; then
-            sed -i 's|^OBSIDIAN_API_KEY=.*|OBSIDIAN_API_KEY=${{ inputs.api_key }}|' .env
+            sed -i 's|^OBSIDIAN_API_KEY=.*|OBSIDIAN_API_KEY=${{ secrets.OBSIDIAN_API_KEY }}|' .env
           else
-            echo 'OBSIDIAN_API_KEY=${{ inputs.api_key }}' >> .env
+            echo 'OBSIDIAN_API_KEY=${{ secrets.OBSIDIAN_API_KEY }}' >> .env
           fi
 
           # Restart MCP server to pick up new key
