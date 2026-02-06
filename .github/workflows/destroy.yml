@@ -8,6 +8,11 @@ on:
         required: true
         type: string
 
+env:
+  TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+  TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+  TF_VAR_vnc_password: ${{ secrets.VNC_PASSWORD }}
+
 jobs:
   destroy:
     runs-on: ubuntu-latest
@@ -21,15 +26,6 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.0
-
-      - name: Create tfvars file
-        working-directory: terraform
-        run: |
-          cat > terraform.tfvars << EOF
-          hcloud_token     = "${{ secrets.HCLOUD_TOKEN }}"
-          ssh_public_key   = "${{ secrets.SSH_PUBLIC_KEY }}"
-          vnc_password     = "${{ secrets.VNC_PASSWORD }}"
-          EOF
 
       - name: Terraform Init
         working-directory: terraform
