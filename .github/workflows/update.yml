@@ -71,6 +71,10 @@ jobs:
           docker ps
           ENDSSH
 
+      - name: Cleanup SSH Key
+        if: always()
+        run: rm -f ~/.ssh/id_rsa
+
       - name: Update Summary
         run: |
           if [ -n "${{ steps.server.outputs.ipv4 }}" ] && [ "${{ steps.server.outputs.ipv4 }}" != "IPv4 disabled" ]; then

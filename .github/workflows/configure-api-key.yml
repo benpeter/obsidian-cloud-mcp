@@ -86,6 +86,10 @@ jobs:
           echo "Checking MCP server container status..."
           ssh root@$SERVER_IP "docker ps --filter name=obsidian-mcp --format '{{.Status}}'"
 
+      - name: Cleanup SSH Key
+        if: always()
+        run: rm -f ~/.ssh/id_rsa
+
       - name: Configuration Summary
         run: |
           echo "## API Key Configured" >> $GITHUB_STEP_SUMMARY

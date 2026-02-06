@@ -124,6 +124,10 @@ jobs:
           docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "(NAMES|obsidian)"
           EOF
 
+      - name: Cleanup SSH Key
+        if: always()
+        run: rm -f ~/.ssh/id_rsa
+
       - name: Summary
         run: |
           echo "## Web GUI Access: ${{ inputs.action }}d" >> $GITHUB_STEP_SUMMARY
