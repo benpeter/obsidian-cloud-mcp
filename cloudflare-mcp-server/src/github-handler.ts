@@ -15,8 +15,14 @@ import {
 	validateOAuthState,
 } from "./workers-oauth-utils";
 
-// Email whitelist - only these users can access the MCP server
-const ALLOWED_EMAILS = new Set<string>(["REDACTED_EMAIL"]);
+/**
+ * Check if an email is in the allowed list stored in KV.
+ * KV key format: allowed_email:<email>
+ */
+async function isEmailAllowed(kv: KVNamespace, email: string): Promise<boolean> {
+	const value = await kv.get(`allowed_email:${email.toLowerCase()}`);
+	return value !== null;
+}
 
 const app = new Hono<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>();
 
@@ -231,8 +237,8 @@ app.get("/callback", async (c) => {
 		}
 	}
 
-	// Check if user's email is in the allowed list
-	if (!verifiedEmail || !ALLOWED_EMAILS.has(verifiedEmail.toLowerCase())) {
+	// Check if user's email is in the allowed list (stored in KV)
+	if (!verifiedEmail || !(await isEmailAllowed(c.env.OAUTH_KV, verifiedEmail))) {
 		console.log(`Access denied for email: ${verifiedEmail || "unknown"} (login: ${login})`);
 		return c.html(
 			`<!DOCTYPE html>

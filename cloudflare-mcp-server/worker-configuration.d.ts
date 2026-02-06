@@ -7,7 +7,7 @@ declare namespace Cloudflare {
 	}
 	interface Env {
 		OAUTH_KV: KVNamespace;
-		HETZNER_MCP_URL: "https://REDACTED_DOMAIN";
+		HETZNER_MCP_URL: string;
 	}
 }
 interface Env extends Cloudflare.Env {}

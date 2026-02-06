@@ -24,8 +24,11 @@ export class ObsidianMcpProxy extends McpAgent<Env, {}, Props> {
 			{},
 			async () => {
 				try {
+					if (!this.env.HETZNER_MCP_URL) {
+						throw new Error("HETZNER_MCP_URL environment variable is not set");
+					}
 					const response = await fetch(
-						`${this.env.HETZNER_MCP_URL || "https://REDACTED_DOMAIN"}/mcp`,
+						`${this.env.HETZNER_MCP_URL}/mcp`,
 						{
 							method: "POST",
 							headers: {

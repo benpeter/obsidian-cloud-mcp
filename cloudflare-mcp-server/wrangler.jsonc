@@ -9,10 +9,10 @@
 	 * - GITHUB_CLIENT_ID
 	 * - GITHUB_CLIENT_SECRET
 	 * - COOKIE_ENCRYPTION_KEY
+	 * - HETZNER_MCP_URL
+	 * - INTROSPECTION_SECRET
 	 */
-	"vars": {
-		"HETZNER_MCP_URL": "https://REDACTED_DOMAIN"
-	},
+	"vars": {},
 	"kv_namespaces": [
 		{
 			"binding": "OAUTH_KV",
